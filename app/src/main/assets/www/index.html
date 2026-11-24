@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>VizSDR v0.3.0</title>
+  <title>VizSDR v0.3.1</title>
   <style>
     :root {
       --bg-dark: #0b0e14;
@@ -212,6 +212,7 @@
     /* ================= WATERFALL CENTRAL ================= */
     #waterfall-wrap {
       flex: 1;
+      min-height: 120px;
       position: relative;
       background: #05070a;
       overflow: hidden;
@@ -219,6 +220,8 @@
     }
 
     #wf-canvas {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       display: block;
@@ -273,7 +276,6 @@
       cursor: pointer;
     }
 
-    /* Poignées de redimensionnement déportées à droite en rouge */
     .resize-handle {
       position: absolute;
       right: 6px;
@@ -364,7 +366,6 @@
       width: 100%;
     }
 
-    /* Centrage absolu réel des boutons Zoom x2 */
     .zoom-center-group {
       position: absolute;
       left: 50%;
@@ -636,7 +637,6 @@
       font-size: 12px;
     }
 
-    /* Easter Egg Toast */
     #easter-egg-toast {
       position: fixed;
       top: 50%;
@@ -654,7 +654,6 @@
       transform: translate(-50%, -50%) scale(1.1);
     }
 
-    /* Carte KiwiSDR intégrée */
     #map-modal .modal-box { max-width: 94vw; height: 90vh; }
     #kiwimap-frame { flex: 1; width: 100%; border: none; background: #0b0e14; }
   </style>
@@ -666,7 +665,7 @@
     <div class="top-left">
       <div class="brand-row">
         <span class="brand-title">VizSDR</span>
-        <span class="version-badge">v0.3.0</span>
+        <span class="version-badge">v0.3.1</span>
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text" data-i18n="disconnected">Déconnecté</span>
       </div>
@@ -704,7 +703,6 @@
       </div>
     </div>
 
-    <!-- Poignées de redimensionnement déportées à droite en rouge -->
     <div id="handle-top" class="resize-handle" title="Ajuster hauteur barre haute"></div>
     <div id="handle-bot" class="resize-handle" title="Ajuster hauteur barre basse"></div>
 
@@ -764,7 +762,6 @@
   </footer>
 </div>
 
-<!-- EASTER EGG -->
 <div id="easter-egg-toast">🥖</div>
 
 <!-- MODALE SAISIE FRÉQUENCE -->
@@ -829,11 +826,10 @@
 <div id="settings-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.3.0</span></h2>
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.3.1</span></h2>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
-      <!-- Connexion SDR -->
       <div class="settings-section">
         <h4 data-i18n="connSection">Connexion KiwiSDR</h4>
         <div class="form-row">
@@ -855,7 +851,6 @@
         <div id="recent-hosts" style="display:flex; flex-wrap:wrap; gap:5px;"></div>
       </div>
 
-      <!-- Identité & Langue -->
       <div class="settings-section">
         <h4 data-i18n="idLangSection">Indicatif & Langue</h4>
         <div class="form-row">
@@ -871,7 +866,6 @@
         </div>
       </div>
 
-      <!-- Waterfall KiwiSDR -->
       <div class="settings-section">
         <h4 data-i18n="wfSection">Waterfall (Style KiwiSDR)</h4>
         <div class="form-row">
@@ -902,7 +896,6 @@
         </div>
       </div>
 
-      <!-- Enregistrement Audio -->
       <div class="settings-section">
         <h4 data-i18n="recSection">Enregistrement Audio (REC)</h4>
         <div class="form-row">
@@ -914,7 +907,6 @@
         </div>
       </div>
 
-      <!-- Répertoire HF -->
       <div class="settings-section">
         <h4 data-i18n="dirSection">Répertoire HF & Outils</h4>
         <div class="form-row">
@@ -1243,13 +1235,43 @@ class KiwiSDREngine {
   handleWaterfallFrame(buffer) {
     const view = new DataView(buffer);
     if (buffer.byteLength <= 16) return;
+    // Vérifie 'W/F' (0x57 0x2F 0x46)
     if (view.getUint8(0) !== 0x57 || view.getUint8(1) !== 0x2F || view.getUint8(2) !== 0x46) return;
-    const bins = new Uint8Array(buffer, 16);
-    this.onWaterfallLine(bins);
+
+    const flags = view.getUint32(8, true);
+    const isCompressed = (flags & 0x01) !== 0 || (buffer.byteLength < 600);
+
+    if (isCompressed && buffer.byteLength > 19) {
+      let predictor = view.getInt16(16, true);
+      let stepIndex = Math.max(0, Math.min(88, view.getUint8(18)));
+      const out = new Uint8Array(1024);
+      let outIdx = 0;
+
+      for (let i = 19; i < buffer.byteLength && outIdx < 1024; i++) {
+        const byte = view.getUint8(i);
+        const nibbles = [byte & 0x0F, (byte >> 4) & 0x0F];
+        for (let n = 0; n < 2 && outIdx < 1024; n++) {
+          const nibble = nibbles[n];
+          const step = this.stepSizeTable[stepIndex];
+          let diff = step >> 3;
+          if (nibble & 1) diff += step >> 2;
+          if (nibble & 2) diff += step >> 1;
+          if (nibble & 4) diff += step;
+          predictor += (nibble & 8) ? -diff : diff;
+          predictor = Math.max(-32768, Math.min(32767, predictor));
+          stepIndex = Math.max(0, Math.min(88, stepIndex + this.indexAdjustTable[nibble]));
+          out[outIdx++] = Math.max(0, Math.min(255, Math.round((predictor / 256) + 128)));
+        }
+      }
+      this.onWaterfallLine(out);
+    } else {
+      const bins = new Uint8Array(buffer, 16);
+      this.onWaterfallLine(bins);
+    }
   }
 }
 
-/* ================= LOGIQUE INTERFACE VIZSDR v0.3.0 ================= */
+/* ================= LOGIQUE INTERFACE VIZSDR v0.3.1 ================= */
 const KIWI_FILTERS = {
   am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
   fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
@@ -1287,7 +1309,7 @@ const I18N = {
     enterFreq: 'Fréquence (kHz)',
     saveBeacon: 'Balise',
     beaconsTitle: 'Balises & Fréquences sauvegardées',
-    settingsTitle: 'Paramètres VizSDR v0.3.0',
+    settingsTitle: 'Paramètres VizSDR v0.3.1',
     connSection: 'Connexion KiwiSDR',
     disconnect: 'Déconnecter',
     connect: 'Connecter',
@@ -1310,7 +1332,7 @@ const I18N = {
     enterFreq: 'Frequency (kHz)',
     saveBeacon: 'Beacon',
     beaconsTitle: 'Beacons & Saved Frequencies',
-    settingsTitle: 'VizSDR v0.3.0 Settings',
+    settingsTitle: 'VizSDR v0.3.1 Settings',
     connSection: 'KiwiSDR Connection',
     disconnect: 'Disconnect',
     connect: 'Connect',
@@ -1325,17 +1347,25 @@ const I18N = {
 };
 
 // Canvas Waterfall
+const wfWrap = document.getElementById('waterfall-wrap');
 const wfCanvas = document.getElementById('wf-canvas');
 const wfCtx = wfCanvas.getContext('2d', { alpha: false });
 let wfHistory = [];
 
 function resizeCanvas() {
-  const rect = wfCanvas.parentElement.getBoundingClientRect();
-  wfCanvas.width = Math.max(300, Math.floor(rect.width));
-  wfCanvas.height = Math.max(120, Math.floor(rect.height));
+  const rect = wfWrap.getBoundingClientRect();
+  const w = Math.max(300, Math.floor(rect.width || window.innerWidth));
+  const h = Math.max(140, Math.floor(rect.height || (window.innerHeight * 0.66)));
+  if (wfCanvas.width !== w || wfCanvas.height !== h) {
+    wfCanvas.width = w;
+    wfCanvas.height = h;
+  }
   redrawWaterfall();
 }
 window.addEventListener('resize', resizeCanvas);
+if (window.ResizeObserver) {
+  new ResizeObserver(() => resizeCanvas()).observe(wfWrap);
+}
 
 function getColorLUT(name) {
   const lut = new Uint8ClampedArray(256 * 3);
@@ -1367,6 +1397,7 @@ function getColorLUT(name) {
 let currentLUT = getColorLUT('kiwi');
 
 function pushWaterfallRow(bins) {
+  if (wfCanvas.width < 10 || wfCanvas.height < 10) resizeCanvas();
   wfHistory.unshift({ bins: new Uint8Array(bins), centerKhz: state.freqKhz, zoom: state.zoom });
   if (wfHistory.length > wfCanvas.height) wfHistory.length = wfCanvas.height;
   redrawWaterfall();
@@ -1375,13 +1406,23 @@ function pushWaterfallRow(bins) {
 function redrawWaterfall() {
   const w = wfCanvas.width;
   const h = wfCanvas.height;
+  if (w <= 0 || h <= 0) return;
+
   const img = wfCtx.createImageData(w, h);
   const data = img.data;
   const spanTotal = Math.max(1, state.maxFreqKhz - state.minFreqKhz);
   const curSpan = spanTotal / Math.pow(2, state.zoom);
   const curLeft = state.freqKhz - curSpan / 2;
 
-  for (let y = 0; y < Math.min(h, wfHistory.length); y++) {
+  for (let y = 0; y < h; y++) {
+    if (y >= wfHistory.length) {
+      for (let x = 0; x < w; x++) {
+        const pIdx = (y * w + x) * 4;
+        data[pIdx] = 5; data[pIdx + 1] = 7; data[pIdx + 2] = 10; data[pIdx + 3] = 255;
+      }
+      continue;
+    }
+
     const row = wfHistory[y];
     const rowSpan = spanTotal / Math.pow(2, row.zoom);
     const rowLeft = row.centerKhz - rowSpan / 2;
@@ -1426,6 +1467,7 @@ const engine = new KiwiSDREngine({
     if (status === 'connected') {
       txt.textContent = `${I18N[state.lang].connected} ${info}`;
       popup.classList.add('hidden');
+      resizeCanvas();
     } else if (status === 'connecting') {
       txt.textContent = `${I18N[state.lang].connecting} (${info})`;
     } else if (status === 'error') {
@@ -1513,7 +1555,7 @@ function updateZoomUI() {
   redrawWaterfall();
 }
 
-// Boutons Modes (Cycle Blanc -> Rouge -> Jaune -> Blanc)
+// Boutons Modes
 document.querySelectorAll('.mode-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     const m = btn.dataset.mode;
@@ -1815,6 +1857,7 @@ document.getElementById('btn-quick-custom').addEventListener('click', () => { op
 
 function connectToHost(host) {
   if (!host) return;
+  wfHistory = [];
   engine.callsign = document.getElementById('callsign-input').value.trim() || 'VizSDR_User';
   if (!state.recentHosts.includes(host)) {
     state.recentHosts.unshift(host);
@@ -1904,7 +1947,7 @@ document.getElementById('btn-add-dir').addEventListener('click', () => {
   }
 });
 
-// Langue & Easter Egg (Triple-clic FR = Baguette, EN = Tasse de thé)
+// Langue & Easter Egg
 let eggClicks = { fr: 0, en: 0 };
 let eggTimers = { fr: null, en: null };
 
@@ -1940,7 +1983,6 @@ document.getElementById('lang-en').addEventListener('click', () => {
   if (eggClicks.en >= 3) { eggClicks.en = 0; triggerEasterEgg('🍵'); }
 });
 
-// Pont appelé par Android lorsqu'un KiwiSDR est cliqué sur la carte
 window.onAndroidKiwiSelected = function(hostUrl) {
   connectToHost(hostUrl);
 };
