@@ -1,0 +1,138 @@
+package org.vizsdr.app
+
+import android.annotation.SuppressLint
+import android.content.ContentValues
+import android.os.Build
+import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
+import android.util.Base64
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
+import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.app.AppCompatActivity
+import java.io.File
+import java.io.FileOutputStream
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var webView: WebView
+    private var lastBackPressTime = 0L
+
+    @SuppressLint("SetJavaScriptEnabled")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        webView = WebView(this)
+        setContentView(webView)
+        enableImmersiveFullscreen()
+
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            mediaPlaybackRequiresUserGesture = false
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            allowFileAccess = true
+            allowContentAccess = true
+            useWideViewPort = true
+            loadWithOverviewMode = true
+        }
+
+        webView.addJavascriptInterface(AndroidAudioBridge(), "AndroidBridge")
+        webView.webChromeClient = WebChromeClient()
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val url = request?.url?.toString() ?: return false
+                if (url.contains(":8073") || url.contains("kiwisdr")) {
+                    val host = request.url.host + ":" + (if (request.url.port != -1) request.url.port else 8073)
+                    webView.evaluateJavascript("window.onAndroidKiwiSelected && window.onAndroidKiwiSelected('$host');", null)
+                    return true
+                }
+                return false
+            }
+        }
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val now = System.currentTimeMillis()
+                if (now - lastBackPressTime < 2000L) {
+                    finish()
+                } else {
+                    lastBackPressTime = now
+                    webView.evaluateJavascript("document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('open'));", null)
+                    Toast.makeText(this@MainActivity, "Appuyez encore pour quitter VizSDR", Toast.LENGTH_SHORT).show()
+                }
+            }
+        })
+
+        webView.loadUrl("file:///android_asset/www/index.html")
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) enableImmersiveFullscreen()
+    }
+
+    private fun enableImmersiveFullscreen() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.let { controller ->
+                controller.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    or View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                )
+        }
+    }
+
+    inner class AndroidAudioBridge {
+        @JavascriptInterface
+        fun saveAudioFile(base64Data: String, filename: String, mimeType: String) {
+            try {
+                val bytes = Base64.decode(base64Data, Base64.DEFAULT)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val values = ContentValues().apply {
+                        put(MediaStore.Downloads.DISPLAY_NAME, filename)
+                        put(MediaStore.Downloads.MIME_TYPE, mimeType)
+                        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/VizSDR")
+                    }
+                    val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    uri?.let {
+                        contentResolver.openOutputStream(it)?.use { out -> out.write(bytes) }
+                    }
+                } else {
+                    val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "VizSDR")
+                    if (!dir.exists()) dir.mkdirs()
+                    FileOutputStream(File(dir, filename)).use { out -> out.write(bytes) }
+                }
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "Enregistré dans Téléchargements/VizSDR/$filename", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "Erreur sauvegarde audio : ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+}
