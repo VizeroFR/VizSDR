@@ -317,8 +317,8 @@
       background: #131926;
       border: 1px solid #28354d;
       border-radius: 12px;
-      padding: 16px 20px;
-      max-width: 420px;
+      padding: 14px 18px;
+      max-width: 440px;
       width: 100%;
       text-align: center;
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
@@ -326,13 +326,13 @@
     .offline-card h3 {
       font-size: 15px;
       color: #f8fafc;
-      margin-bottom: 6px;
+      margin-bottom: 5px;
     }
     .offline-card p {
       font-size: 12px;
       color: #94a3b8;
-      margin-bottom: 12px;
-      line-height: 1.4;
+      margin-bottom: 10px;
+      line-height: 1.35;
     }
     .offline-actions {
       display: flex;
@@ -551,7 +551,7 @@
     }
 
     .modal-header {
-      padding: 12px 16px;
+      padding: 10px 14px;
       background: #18202e;
       border-bottom: 1px solid #263144;
       display: flex;
@@ -617,12 +617,13 @@
       background: #1e293b;
       color: #e2e8f0;
       border: 1px solid #334155;
-      padding: 7px 12px;
+      padding: 6px 10px;
       border-radius: 6px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       cursor: pointer;
     }
+    .btn-secondary:active { border-color: var(--accent-blue); background: #263449; }
 
     .dir-item, .beacon-item {
       display: flex;
@@ -654,7 +655,7 @@
     }
 
     /* Carte KiwiSDR intégrée */
-    #map-modal .modal-box { max-width: 92vw; height: 88vh; }
+    #map-modal .modal-box { max-width: 94vw; height: 90vh; }
     #kiwimap-frame { flex: 1; width: 100%; border: none; background: #0b0e14; }
   </style>
 </head>
@@ -711,10 +712,16 @@
     <div id="offline-popup">
       <div class="offline-card">
         <h3 data-i18n="offlineTitle">Non connecté à un serveur KiwiSDR</h3>
-        <p id="offline-diag" data-i18n="offlineDesc">Choisissez un récepteur sur la carte publique KiwiSDR ou entrez une adresse personnalisée pour démarrer la réception temps réel.</p>
+        <p id="offline-diag" data-i18n="offlineDesc">Choisissez un récepteur recommandé ci-dessous, ouvrez la carte ou entrez une adresse personnalisée.</p>
         <div class="offline-actions">
           <button id="btn-quick-map" class="btn-primary" data-i18n="openMap">Carte KiwiSDR</button>
-          <button id="btn-quick-custom" class="btn-secondary" data-i18n="customConn">Connexion personnalisée</button>
+          <button id="btn-quick-custom" class="btn-secondary" data-i18n="customConn">Connexion perso</button>
+        </div>
+        <div style="margin-top:9px; display:flex; flex-wrap:wrap; gap:6px; justify-content:center;">
+          <button type="button" class="btn-secondary rec-host-btn" data-host="kiwisdr.briata.org:8073">🇫🇷 Briata</button>
+          <button type="button" class="btn-secondary rec-host-btn" data-host="hbsdr.ch:8073">🇨🇭 Suisse</button>
+          <button type="button" class="btn-secondary rec-host-btn" data-host="kiwisdr.df0wv.de:8073">🇩🇪 Allemagne</button>
+          <button type="button" class="btn-secondary rec-host-btn" data-host="k3fef.com:8073">🇺🇸 USA</button>
         </div>
       </div>
     </div>
@@ -837,6 +844,14 @@
           <input id="custom-host-input" type="text" placeholder="ex: kiwisdr.example.com:8073" style="flex:1;" />
           <button id="btn-connect-custom" class="btn-primary" data-i18n="connect">Connecter</button>
         </div>
+        <div style="font-size:11px; color:#94a3b8; margin-top:2px;">KiwiSDR recommandés (1 clic) :</div>
+        <div id="recommended-hosts" style="display:flex; flex-wrap:wrap; gap:6px;">
+          <button type="button" class="btn-secondary rec-host-btn" data-host="kiwisdr.briata.org:8073">🇫🇷 France (Briata)</button>
+          <button type="button" class="btn-secondary rec-host-btn" data-host="hbsdr.ch:8073">🇨🇭 Suisse (HB9)</button>
+          <button type="button" class="btn-secondary rec-host-btn" data-host="kiwisdr.df0wv.de:8073">🇩🇪 Allemagne (DF0WV)</button>
+          <button type="button" class="btn-secondary rec-host-btn" data-host="k3fef.com:8073">🇺🇸 USA (K3FEF)</button>
+          <button type="button" class="btn-secondary rec-host-btn" data-host="kiwisdr.northlandradio.nz:8073">🇳🇿 Nouvelle-Zélande</button>
+        </div>
         <div id="recent-hosts" style="display:flex; flex-wrap:wrap; gap:5px;"></div>
       </div>
 
@@ -916,8 +931,10 @@
 <!-- MODALE CARTE KIWISDR -->
 <div id="map-modal" class="modal-backdrop">
   <div class="modal-box">
-    <div class="modal-header">
-      <h2>Carte Publique KiwiSDR (Cliquez sur un récepteur)</h2>
+    <div class="modal-header" style="gap:8px;">
+      <h2 style="flex:1; font-size:13px;">Carte KiwiSDR</h2>
+      <input id="map-quick-host" type="text" placeholder="Coller URL ou hôte..." style="width:170px;" />
+      <button id="btn-validate-map" class="btn-primary" style="background:#16a34a;">✓ Valider</button>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <iframe id="kiwimap-frame" src="about:blank"></iframe>
@@ -962,7 +979,6 @@ class KiwiSDREngine {
     this.readPtr = 0;
     this.bufferedSamples = 0;
 
-    // Enregistrement WAV direct
     this.isRecordingWav = false;
     this.wavChunks = [];
 
@@ -1265,7 +1281,7 @@ const I18N = {
     connecting: 'Connexion...',
     connected: 'Connecté à',
     offlineTitle: 'Non connecté à un serveur KiwiSDR',
-    offlineDesc: 'Choisissez un récepteur sur la carte publique KiwiSDR ou entrez une adresse personnalisée.',
+    offlineDesc: 'Choisissez un récepteur recommandé ci-dessous, ouvrez la carte ou entrez une adresse personnalisée.',
     openMap: 'Carte KiwiSDR',
     customConn: 'Connexion perso',
     enterFreq: 'Fréquence (kHz)',
@@ -1288,7 +1304,7 @@ const I18N = {
     connecting: 'Connecting...',
     connected: 'Connected to',
     offlineTitle: 'Not connected to a KiwiSDR server',
-    offlineDesc: 'Pick a receiver from the public KiwiSDR map or enter a custom server address.',
+    offlineDesc: 'Pick a recommended receiver below, open the map, or enter a custom server address.',
     openMap: 'KiwiSDR Map',
     customConn: 'Custom Connection',
     enterFreq: 'Frequency (kHz)',
@@ -1814,7 +1830,11 @@ document.getElementById('btn-connect-custom').addEventListener('click', () => {
 });
 document.getElementById('btn-disconnect').addEventListener('click', () => engine.disconnect());
 
-// Carte KiwiSDR intégrée
+document.querySelectorAll('.rec-host-btn').forEach((btn) => {
+  btn.addEventListener('click', () => connectToHost(btn.dataset.host));
+});
+
+// Carte KiwiSDR intégrée + Bouton Valider
 function openKiwiMap() {
   closeAllModals();
   const frame = document.getElementById('kiwimap-frame');
@@ -1823,6 +1843,9 @@ function openKiwiMap() {
 }
 document.getElementById('btn-open-kiwimap').addEventListener('click', openKiwiMap);
 document.getElementById('btn-quick-map').addEventListener('click', openKiwiMap);
+document.getElementById('btn-validate-map').addEventListener('click', () => {
+  connectToHost(document.getElementById('map-quick-host').value);
+});
 
 // Waterfall Settings
 document.getElementById('wf-colormap').addEventListener('change', (e) => {
