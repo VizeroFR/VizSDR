@@ -1,0 +1,1933 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>VizSDR v0.3.0</title>
+  <style>
+    :root {
+      --bg-dark: #0b0e14;
+      --panel-bg: #131822;
+      --panel-border: #1e2636;
+      --accent-blue: #3b82f6;
+      --accent-blue-dim: rgba(59, 130, 246, 0.18);
+      --text-main: #f1f5f9;
+      --text-muted: #8b9bb4;
+      --mode-normal: #f8fafc;
+      --mode-narrow: #ef4444;
+      --mode-wide: #eab308;
+      --danger: #ef4444;
+      --top-h: 16.6vh;
+      --bot-h: 16.6vh;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg-dark);
+      color: var(--text-main);
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    /* ================= BARRE DU HAUT ================= */
+    #top-bar {
+      height: var(--top-h);
+      min-height: 64px;
+      max-height: 32vh;
+      background: linear-gradient(180deg, #161c28 0%, #111620 100%);
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 14px;
+      position: relative;
+      z-index: 20;
+      gap: 10px;
+    }
+
+    .top-left {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand-title {
+      font-weight: 700;
+      color: #cbd5e1;
+      letter-spacing: 0.4px;
+    }
+
+    .version-badge {
+      background: var(--accent-blue-dim);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #64748b;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .status-dot.connected { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+    .status-dot.connecting { background: #eab308; }
+    .status-dot.error { background: #ef4444; }
+
+    .freq-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #freq-display {
+      font-size: clamp(19px, 3.2vw, 26px);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: #ffffff;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      padding: 1px 6px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid transparent;
+    }
+    #freq-display:active { border-color: var(--accent-blue); }
+
+    #top-mode-badge {
+      font-size: 12px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--mode-normal);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      letter-spacing: 0.6px;
+    }
+    #top-mode-badge.narrow {
+      color: var(--mode-narrow);
+      border-color: rgba(239, 68, 68, 0.5);
+      background: rgba(239, 68, 68, 0.14);
+    }
+    #top-mode-badge.wide {
+      color: var(--mode-wide);
+      border-color: rgba(234, 179, 8, 0.5);
+      background: rgba(234, 179, 8, 0.14);
+    }
+
+    .top-center {
+      flex: 1;
+      max-width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .smeter-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    #dbm-val { color: #60a5fa; font-weight: 700; }
+
+    .smeter-track {
+      width: 100%;
+      height: 8px;
+      background: #0a0d12;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #1e293b;
+    }
+    #smeter-fill {
+      height: 100%;
+      width: 15%;
+      background: linear-gradient(90deg, #2563eb, #38bdf8, #ef4444);
+      transition: width 0.08s linear;
+    }
+
+    .top-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .icon-btn {
+      background: #1b2230;
+      border: 1px solid #2a3548;
+      color: #e2e8f0;
+      height: 36px;
+      min-width: 36px;
+      padding: 0 10px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+    .icon-btn:active { background: #263145; border-color: var(--accent-blue); }
+
+    /* ================= WATERFALL CENTRAL ================= */
+    #waterfall-wrap {
+      flex: 1;
+      position: relative;
+      background: #05070a;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    #wf-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #tune-cursor {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      display: flex;
+      justify-content: center;
+    }
+    #passband-shade {
+      height: 100%;
+      background: rgba(59, 130, 246, 0.16);
+      border-left: 1px dashed rgba(96, 165, 250, 0.55);
+      border-right: 1px dashed rgba(96, 165, 250, 0.55);
+      position: relative;
+    }
+    #carrier-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 1.5px;
+      background: #ef4444;
+    }
+
+    #beacon-overlay {
+      position: absolute;
+      top: 6px;
+      left: 0;
+      right: 0;
+      height: 22px;
+      pointer-events: none;
+    }
+    .beacon-tag {
+      position: absolute;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid #3b82f6;
+      color: #93c5fd;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+
+    /* Poignées de redimensionnement déportées à droite en rouge */
+    .resize-handle {
+      position: absolute;
+      right: 6px;
+      width: 44px;
+      height: 14px;
+      background: rgba(239, 68, 68, 0.85);
+      border: 1px solid #fca5a5;
+      border-radius: 7px;
+      z-index: 30;
+      cursor: ns-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    }
+    .resize-handle::after {
+      content: "";
+      width: 20px;
+      height: 2px;
+      background: #fff;
+      border-radius: 2px;
+    }
+    #handle-top { top: 4px; }
+    #handle-bot { bottom: 4px; }
+
+    /* Pop-up Hors-Ligne */
+    #offline-popup {
+      position: absolute;
+      inset: 0;
+      background: rgba(8, 11, 17, 0.84);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 25;
+      padding: 16px;
+    }
+    #offline-popup.hidden { display: none; }
+
+    .offline-card {
+      background: #131926;
+      border: 1px solid #28354d;
+      border-radius: 12px;
+      padding: 16px 20px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+    }
+    .offline-card h3 {
+      font-size: 15px;
+      color: #f8fafc;
+      margin-bottom: 6px;
+    }
+    .offline-card p {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+    .offline-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    /* ================= BARRE DU BAS ================= */
+    #bottom-bar {
+      height: var(--bot-h);
+      min-height: 78px;
+      max-height: 36vh;
+      background: linear-gradient(0deg, #161c28 0%, #111620 100%);
+      border-top: 1px solid var(--panel-border);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 5px 10px;
+      z-index: 20;
+      gap: 5px;
+    }
+
+    .bot-row-top {
+      position: relative;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      width: 100%;
+    }
+
+    /* Centrage absolu réel des boutons Zoom x2 */
+    .zoom-center-group {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .zoom-btn {
+      width: 54px;
+      height: 30px;
+      border-radius: 7px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .zoom-btn:active { background: var(--accent-blue); border-color: #93c5fd; }
+
+    #span-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #93c5fd;
+      min-width: 72px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #custom-filter-btn {
+      display: none;
+      height: 28px;
+      padding: 0 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      z-index: 2;
+    }
+    #custom-filter-btn.narrow {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(239, 68, 68, 0.18);
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+    }
+    #custom-filter-btn.wide {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(234, 179, 8, 0.18);
+      border: 1px solid #eab308;
+      color: #fde047;
+    }
+
+    .bot-row-main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      width: 100%;
+      flex: 1;
+    }
+
+    .modes-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      flex: 1.25;
+      height: 100%;
+      max-height: 38px;
+    }
+
+    .mode-btn {
+      background: #1a2232;
+      border: 1px solid #2b364c;
+      border-radius: 7px;
+      color: var(--mode-normal);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s;
+    }
+    .mode-btn.active-normal {
+      background: rgba(248, 250, 252, 0.16);
+      border-color: #f8fafc;
+      color: #ffffff;
+    }
+    .mode-btn.active-narrow {
+      background: rgba(239, 68, 68, 0.22);
+      border-color: #ef4444;
+      color: #fca5a5;
+    }
+    .mode-btn.active-wide {
+      background: rgba(234, 179, 8, 0.22);
+      border-color: #eab308;
+      color: #fde047;
+    }
+
+    .audio-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      justify-content: flex-end;
+    }
+
+    .ctrl-pill {
+      height: 34px;
+      padding: 0 8px;
+      border-radius: 7px;
+      background: #1a2232;
+      border: 1px solid #2b364c;
+      color: #e2e8f0;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .ctrl-pill.recording {
+      background: rgba(239, 68, 68, 0.24);
+      border-color: #ef4444;
+      color: #fca5a5;
+    }
+    .ctrl-pill.muted {
+      border-color: #ef4444;
+      color: #fca5a5;
+    }
+
+    .slider-box {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #1a2232;
+      border: 1px solid #2b364c;
+      border-radius: 7px;
+      padding: 0 7px;
+      height: 34px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #94a3b8;
+    }
+    .slider-box input[type="range"] {
+      width: 54px;
+      accent-color: var(--accent-blue);
+    }
+
+    /* ================= MODALES & TIROIRS ================= */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 8, 13, 0.82);
+      backdrop-filter: blur(4px);
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+    }
+    .modal-backdrop.open { display: flex; }
+
+    .modal-box {
+      background: #131924;
+      border: 1px solid #293548;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.75);
+    }
+
+    .modal-header {
+      padding: 12px 16px;
+      background: #18202e;
+      border-bottom: 1px solid #263144;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-header h2 { font-size: 15px; font-weight: 700; }
+
+    .modal-body {
+      padding: 14px 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .settings-section {
+      background: #0f141d;
+      border: 1px solid #1f293a;
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .settings-section h4 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #60a5fa;
+    }
+
+    .form-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    input[type="text"], input[type="number"], select {
+      background: #18202e;
+      border: 1px solid #2e3b52;
+      color: #f8fafc;
+      padding: 6px 9px;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+    }
+    input[type="text"]:focus, input[type="number"]:focus { border-color: var(--accent-blue); }
+
+    .btn-primary {
+      background: var(--accent-blue);
+      color: #fff;
+      border: none;
+      padding: 7px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-secondary {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+      padding: 7px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .dir-item, .beacon-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #161d2b;
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: 1px solid #243044;
+      font-size: 12px;
+    }
+
+    /* Easter Egg Toast */
+    #easter-egg-toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.6);
+      font-size: 76px;
+      pointer-events: none;
+      opacity: 0;
+      z-index: 100;
+      transition: all 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      filter: drop-shadow(0 8px 20px rgba(0,0,0,0.8));
+    }
+    #easter-egg-toast.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+
+    /* Carte KiwiSDR intégrée */
+    #map-modal .modal-box { max-width: 92vw; height: 88vh; }
+    #kiwimap-frame { flex: 1; width: 100%; border: none; background: #0b0e14; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- BARRE DU HAUT -->
+  <header id="top-bar">
+    <div class="top-left">
+      <div class="brand-row">
+        <span class="brand-title">VizSDR</span>
+        <span class="version-badge">v0.3.0</span>
+        <span id="status-dot" class="status-dot"></span>
+        <span id="status-text" data-i18n="disconnected">Déconnecté</span>
+      </div>
+      <div class="freq-row">
+        <div id="freq-display" title="Cliquer pour saisir une fréquence">4 625.00 kHz</div>
+        <span id="top-mode-badge">AM</span>
+      </div>
+    </div>
+
+    <div class="top-center">
+      <div class="smeter-header">
+        <span>S-METER</span>
+        <span id="dbm-val">--.- dBm</span>
+      </div>
+      <div class="smeter-track">
+        <div id="smeter-fill"></div>
+      </div>
+    </div>
+
+    <div class="top-right">
+      <button id="btn-beacons" class="icon-btn" title="Balises / Fréquences sauvegardées">★</button>
+      <button id="btn-settings" class="icon-btn" title="Paramètres">⚙</button>
+    </div>
+  </header>
+
+  <!-- WATERFALL CENTRAL -->
+  <main id="waterfall-wrap">
+    <canvas id="wf-canvas"></canvas>
+
+    <div id="beacon-overlay"></div>
+
+    <div id="tune-cursor">
+      <div id="passband-shade">
+        <div id="carrier-line"></div>
+      </div>
+    </div>
+
+    <!-- Poignées de redimensionnement déportées à droite en rouge -->
+    <div id="handle-top" class="resize-handle" title="Ajuster hauteur barre haute"></div>
+    <div id="handle-bot" class="resize-handle" title="Ajuster hauteur barre basse"></div>
+
+    <!-- Pop-up Hors-Ligne -->
+    <div id="offline-popup">
+      <div class="offline-card">
+        <h3 data-i18n="offlineTitle">Non connecté à un serveur KiwiSDR</h3>
+        <p id="offline-diag" data-i18n="offlineDesc">Choisissez un récepteur sur la carte publique KiwiSDR ou entrez une adresse personnalisée pour démarrer la réception temps réel.</p>
+        <div class="offline-actions">
+          <button id="btn-quick-map" class="btn-primary" data-i18n="openMap">Carte KiwiSDR</button>
+          <button id="btn-quick-custom" class="btn-secondary" data-i18n="customConn">Connexion personnalisée</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- BARRE DU BAS -->
+  <footer id="bottom-bar">
+    <div class="bot-row-top">
+      <div class="zoom-center-group">
+        <button id="btn-zoom-out" class="zoom-btn" aria-label="Zoom out">−</button>
+        <span id="span-label">234.4 kHz</span>
+        <button id="btn-zoom-in" class="zoom-btn" aria-label="Zoom in">+</button>
+      </div>
+      <button id="custom-filter-btn">Custom Narrow</button>
+    </div>
+
+    <div class="bot-row-main">
+      <div class="modes-grid">
+        <button class="mode-btn active-normal" data-mode="am">AM</button>
+        <button class="mode-btn" data-mode="fm">FM</button>
+        <button class="mode-btn" data-mode="lsb">LSB</button>
+        <button class="mode-btn" data-mode="usb">USB</button>
+        <button class="mode-btn" data-mode="cw">CW</button>
+      </div>
+
+      <div class="audio-controls">
+        <button id="btn-rec" class="ctrl-pill">● REC</button>
+        <button id="btn-mute" class="ctrl-pill">🔊 ON</button>
+        <div class="slider-box">
+          <span>VOL</span>
+          <input id="vol-slider" type="range" min="0" max="100" value="80" />
+        </div>
+        <div class="slider-box">
+          <span>SQL</span>
+          <input id="sql-slider" type="range" min="-140" max="-40" value="-135" />
+        </div>
+        <button id="btn-agc" class="ctrl-pill">AGC: ON</button>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- EASTER EGG -->
+<div id="easter-egg-toast">🥖</div>
+
+<!-- MODALE SAISIE FRÉQUENCE -->
+<div id="freq-modal" class="modal-backdrop">
+  <div class="modal-box" style="max-width:340px;">
+    <div class="modal-header">
+      <h2 data-i18n="enterFreq">Fréquence (kHz)</h2>
+      <button class="icon-btn close-modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <input id="freq-input" type="number" step="0.01" placeholder="ex: 4625.00" />
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button id="btn-save-beacon-quick" class="btn-secondary">★ <span data-i18n="saveBeacon">Balise</span></button>
+        <button id="btn-apply-freq" class="btn-primary">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE FILTRE CUSTOM NARROW / WIDE -->
+<div id="filter-modal" class="modal-backdrop">
+  <div class="modal-box" style="max-width:360px;">
+    <div class="modal-header">
+      <h2 id="filter-modal-title">Custom Filter</h2>
+      <button class="icon-btn close-modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <span>Low Cut (Hz)</span>
+        <input id="filter-low" type="number" step="10" />
+      </div>
+      <div class="form-row">
+        <span>High Cut (Hz)</span>
+        <input id="filter-high" type="number" step="10" />
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button id="btn-reset-filter" class="btn-secondary">Défaut KiwiSDR</button>
+        <button id="btn-apply-filter" class="btn-primary">Appliquer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE BALISES -->
+<div id="beacons-modal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>★ <span data-i18n="beaconsTitle">Balises & Fréquences sauvegardées</span></h2>
+      <button class="icon-btn close-modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <input id="beacon-name-input" type="text" placeholder="Nom (ex: UVB-76, Volmet...)" style="flex:1;" />
+        <button id="btn-add-beacon" class="btn-primary">+ Ajouter</button>
+      </div>
+      <div id="beacons-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE PARAMÈTRES -->
+<div id="settings-modal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.3.0</span></h2>
+      <button class="icon-btn close-modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Connexion SDR -->
+      <div class="settings-section">
+        <h4 data-i18n="connSection">Connexion KiwiSDR</h4>
+        <div class="form-row">
+          <button id="btn-open-kiwimap" class="btn-primary" style="flex:1;" data-i18n="openMap">Ouvrir la carte KiwiSDR</button>
+          <button id="btn-disconnect" class="btn-secondary" data-i18n="disconnect">Déconnecter</button>
+        </div>
+        <div class="form-row">
+          <input id="custom-host-input" type="text" placeholder="ex: kiwisdr.example.com:8073" style="flex:1;" />
+          <button id="btn-connect-custom" class="btn-primary" data-i18n="connect">Connecter</button>
+        </div>
+        <div id="recent-hosts" style="display:flex; flex-wrap:wrap; gap:5px;"></div>
+      </div>
+
+      <!-- Identité & Langue -->
+      <div class="settings-section">
+        <h4 data-i18n="idLangSection">Indicatif & Langue</h4>
+        <div class="form-row">
+          <span>Callsign (KiwiSDR)</span>
+          <input id="callsign-input" type="text" value="VizSDR_User" />
+        </div>
+        <div class="form-row">
+          <span data-i18n="language">Langue</span>
+          <div style="display:flex; gap:6px;">
+            <button id="lang-fr" class="btn-secondary">FR</button>
+            <button id="lang-en" class="btn-secondary">EN</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Waterfall KiwiSDR -->
+      <div class="settings-section">
+        <h4 data-i18n="wfSection">Waterfall (Style KiwiSDR)</h4>
+        <div class="form-row">
+          <span data-i18n="colormap">Palette de couleurs</span>
+          <select id="wf-colormap">
+            <option value="kiwi">KiwiSDR Default</option>
+            <option value="cutesdr">CuteSDR</option>
+            <option value="viridis">Viridis</option>
+            <option value="grey">Greyscale</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <span>WF Min / Max (dB)</span>
+          <div style="display:flex; gap:5px; align-items:center;">
+            <input id="wf-min" type="number" value="-135" style="width:64px;" />
+            <input id="wf-max" type="number" value="-45" style="width:64px;" />
+            <button id="btn-wf-autoscale" class="btn-secondary">Auto</button>
+          </div>
+        </div>
+        <div class="form-row">
+          <span data-i18n="wfSpeed">Vitesse défilement</span>
+          <select id="wf-speed">
+            <option value="1">Lent (1)</option>
+            <option value="2" selected>Normal (2)</option>
+            <option value="3">Rapide (3)</option>
+            <option value="4">Max (4)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Enregistrement Audio -->
+      <div class="settings-section">
+        <h4 data-i18n="recSection">Enregistrement Audio (REC)</h4>
+        <div class="form-row">
+          <span>Format</span>
+          <select id="rec-format">
+            <option value="wav" selected>WAV 16-bit (Sans perte)</option>
+            <option value="webm">WebM / Opus (Compressé)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Répertoire HF -->
+      <div class="settings-section">
+        <h4 data-i18n="dirSection">Répertoire HF & Outils</h4>
+        <div class="form-row">
+          <input id="dir-name" type="text" placeholder="Nom" style="width:35%;" />
+          <input id="dir-url" type="text" placeholder="https://..." style="flex:1;" />
+          <button id="btn-add-dir" class="btn-primary">+</button>
+        </div>
+        <div id="dir-list" style="display:flex; flex-direction:column; gap:5px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE CARTE KIWISDR -->
+<div id="map-modal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>Carte Publique KiwiSDR (Cliquez sur un récepteur)</h2>
+      <button class="icon-btn close-modal">✕</button>
+    </div>
+    <iframe id="kiwimap-frame" src="about:blank"></iframe>
+  </div>
+</div>
+
+<script>
+/* ================= MOTEUR RÉSEAU KIWISDR RÉEL ================= */
+class KiwiSDREngine {
+  constructor(callbacks = {}) {
+    this.onWaterfallLine = callbacks.onWaterfallLine || (() => {});
+    this.onSMeter = callbacks.onSMeter || (() => {});
+    this.onStatusChange = callbacks.onStatusChange || (() => {});
+    this.onServerInfo = callbacks.onServerInfo || (() => {});
+
+    this.wsSnd = null;
+    this.wsWf = null;
+    this.keepAliveTimer = null;
+    this.connected = false;
+
+    this.host = '';
+    this.callsign = 'VizSDR_User';
+    this.minFreqKhz = 0;
+    this.maxFreqKhz = 30000;
+    this.freqKhz = 4625.0;
+    this.mode = 'am';
+    this.lowCut = -4900;
+    this.highCut = 4900;
+    this.zoom = 7;
+    this.agcOn = true;
+
+    this.audioCtx = null;
+    this.scriptNode = null;
+    this.mediaDest = null;
+    this.volume = 0.8;
+    this.muted = false;
+    this.squelchDbm = -135;
+    this.currentDbm = -120;
+
+    this.ringBuffer = new Float32Array(48000);
+    this.writePtr = 0;
+    this.readPtr = 0;
+    this.bufferedSamples = 0;
+
+    // Enregistrement WAV direct
+    this.isRecordingWav = false;
+    this.wavChunks = [];
+
+    this.stepSizeTable = new Int16Array([
+      7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45,
+      50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230,
+      253, 279, 307, 337, 371, 408, 449, 494, 544, 598, 658, 724, 796, 876, 963,
+      1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066, 2272, 2499, 2749, 3024, 3327,
+      3660, 4026, 4428, 4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487,
+      12635, 13899, 15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767
+    ]);
+    this.indexAdjustTable = new Int8Array([-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8]);
+  }
+
+  initAudio() {
+    if (!this.audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      this.audioCtx = new AC();
+      this.scriptNode = this.audioCtx.createScriptProcessor(2048, 0, 1);
+      this.mediaDest = this.audioCtx.createMediaStreamDestination();
+
+      this.scriptNode.onaudioprocess = (e) => {
+        const out = e.outputBuffer.getChannelData(0);
+        const ratio = 12000 / this.audioCtx.sampleRate;
+        const squelchClosed = this.currentDbm < this.squelchDbm;
+
+        for (let i = 0; i < out.length; i++) {
+          if (this.muted || squelchClosed || this.bufferedSamples < 2) {
+            out[i] = 0;
+          } else {
+            const idx0 = Math.floor(this.readPtr) % this.ringBuffer.length;
+            const idx1 = (idx0 + 1) % this.ringBuffer.length;
+            const frac = this.readPtr - Math.floor(this.readPtr);
+            const s = this.ringBuffer[idx0] * (1 - frac) + this.ringBuffer[idx1] * frac;
+            out[i] = s * this.volume;
+            this.readPtr += ratio;
+            if (this.readPtr >= this.ringBuffer.length) this.readPtr -= this.ringBuffer.length;
+            this.bufferedSamples = Math.max(0, this.bufferedSamples - ratio);
+          }
+        }
+      };
+
+      this.scriptNode.connect(this.audioCtx.destination);
+      this.scriptNode.connect(this.mediaDest);
+    }
+    if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
+  }
+
+  connect(rawUrl) {
+    this.disconnect();
+    this.initAudio();
+
+    let clean = rawUrl.trim().replace(/\/+$/, '');
+    const isSecure = clean.startsWith('https://') || clean.startsWith('wss://');
+    clean = clean.replace(/^(https?|wss?):\/\//i, '');
+    if (!clean.includes(':')) clean += ':8073';
+    this.host = clean;
+
+    if (window.location.protocol === 'https:' && !isSecure) {
+      this.onStatusChange('error', 'Blocage navigateur HTTPS vers ws:// (utilisez l’APK Android ou wss://)');
+      return;
+    }
+
+    const proto = isSecure ? 'wss' : 'ws';
+    const ts = Date.now();
+    this.onStatusChange('connecting', clean);
+
+    try {
+      this.wsSnd = new WebSocket(`${proto}://${clean}/kiwi/${ts}/SND`);
+      this.wsSnd.binaryType = 'arraybuffer';
+
+      this.wsSnd.onopen = () => {
+        this.wsSnd.send('SET auth t=kiwi p=#');
+        this.wsSnd.send(`SET ident_user=${encodeURIComponent(this.callsign || 'VizSDR_User')}`);
+        const outRate = this.audioCtx ? this.audioCtx.sampleRate : 44100;
+        this.wsSnd.send(`SET AR OK in=12000 out=${outRate}`);
+        this.wsSnd.send('SET squelch=0 max=0');
+        this.wsSnd.send('SET gen=0 mix=-1');
+        this.sendTune();
+        this.sendAGC();
+      };
+
+      this.wsSnd.onmessage = (evt) => {
+        if (evt.data instanceof ArrayBuffer) this.handleAudioFrame(evt.data);
+        else if (typeof evt.data === 'string') this.handleControlMessage(evt.data);
+      };
+
+      this.wsSnd.onerror = () => {
+        this.onStatusChange('error', `Impossible de joindre ${clean}`);
+      };
+
+      this.wsSnd.onclose = () => {
+        if (this.connected) {
+          this.connected = false;
+          this.onStatusChange('disconnected', clean);
+        }
+      };
+
+      this.wsWf = new WebSocket(`${proto}://${clean}/kiwi/${ts}/W/F`);
+      this.wsWf.binaryType = 'arraybuffer';
+
+      this.wsWf.onopen = () => {
+        this.wsWf.send('SET auth t=kiwi p=#');
+        this.wsWf.send(`SET ident_user=${encodeURIComponent(this.callsign || 'VizSDR_User')}`);
+        this.wsWf.send('SET wf_speed=2');
+        this.wsWf.send('SET interp=13');
+        this.wsWf.send('SET wf_comp=0');
+        this.sendZoom();
+        this.connected = true;
+        this.onStatusChange('connected', clean);
+      };
+
+      this.wsWf.onmessage = (evt) => {
+        if (evt.data instanceof ArrayBuffer) this.handleWaterfallFrame(evt.data);
+        else if (typeof evt.data === 'string') this.handleControlMessage(evt.data);
+      };
+
+      this.keepAliveTimer = setInterval(() => {
+        if (this.wsSnd && this.wsSnd.readyState === WebSocket.OPEN) this.wsSnd.send('SET keepalive');
+        if (this.wsWf && this.wsWf.readyState === WebSocket.OPEN) this.wsWf.send('SET keepalive');
+      }, 5000);
+    } catch (err) {
+      this.onStatusChange('error', err.message || 'Erreur WebSocket');
+    }
+  }
+
+  disconnect() {
+    if (this.keepAliveTimer) clearInterval(this.keepAliveTimer);
+    this.keepAliveTimer = null;
+    if (this.wsSnd) { try { this.wsSnd.close(); } catch (_) {} this.wsSnd = null; }
+    if (this.wsWf) { try { this.wsWf.close(); } catch (_) {} this.wsWf = null; }
+    this.connected = false;
+    this.bufferedSamples = 0;
+    this.onStatusChange('disconnected', '');
+  }
+
+  setTune(freqKhz, mode, lowCut, highCut) {
+    this.freqKhz = Math.max(this.minFreqKhz, Math.min(this.maxFreqKhz, freqKhz));
+    this.mode = mode;
+    this.lowCut = lowCut;
+    this.highCut = highCut;
+    this.sendTune();
+    this.sendZoom();
+  }
+
+  sendTune() {
+    if (!this.wsSnd || this.wsSnd.readyState !== WebSocket.OPEN) return;
+    const kiwiMode = this.mode === 'fm' ? 'nbfm' : this.mode;
+    const dialFreq = Math.max(0, this.freqKhz - this.minFreqKhz);
+    this.wsSnd.send(`SET mod=${kiwiMode} low_cut=${Math.round(this.lowCut)} high_cut=${Math.round(this.highCut)} freq=${dialFreq.toFixed(3)}`);
+  }
+
+  setZoom(zoomLevel) {
+    this.zoom = Math.max(0, Math.min(14, zoomLevel));
+    this.sendZoom();
+  }
+
+  sendZoom() {
+    if (!this.wsWf || this.wsWf.readyState !== WebSocket.OPEN) return;
+    const spanTotal = Math.max(1, this.maxFreqKhz - this.minFreqKhz);
+    const spanKhz = spanTotal / Math.pow(2, this.zoom);
+    const relFreq = Math.max(0, this.freqKhz - this.minFreqKhz);
+    const startKhz = Math.max(0, Math.min(spanTotal - spanKhz, relFreq - spanKhz / 2));
+    const startBin = Math.round((startKhz / spanTotal) * (1024 * Math.pow(2, 14)));
+    this.wsWf.send(`SET zoom=${this.zoom} start=${startBin}`);
+  }
+
+  setWaterfallSpeed(speed) {
+    if (this.wsWf && this.wsWf.readyState === WebSocket.OPEN) {
+      this.wsWf.send(`SET wf_speed=${speed}`);
+    }
+  }
+
+  sendAGC() {
+    if (!this.wsSnd || this.wsSnd.readyState !== WebSocket.OPEN) return;
+    this.wsSnd.send(`SET agc=${this.agcOn ? 1 : 0} hang=0 thresh=-100 slope=6 decay=1000 manGain=50`);
+  }
+
+  handleControlMessage(raw) {
+    if (!raw.startsWith('MSG ')) return;
+    const pairs = raw.slice(4).split(' ');
+    for (const pair of pairs) {
+      const eqIdx = pair.indexOf('=');
+      if (eqIdx === -1) continue;
+      const key = pair.slice(0, eqIdx);
+      const val = decodeURIComponent(pair.slice(eqIdx + 1));
+
+      if (key === 'too_busy') {
+        this.onStatusChange('error', `Récepteur plein (${val} canaux occupés)`);
+      } else if (key === 'freq_offset') {
+        const offset = parseFloat(val) || 0;
+        this.minFreqKhz = offset;
+        this.maxFreqKhz = offset + 30000;
+        this.onServerInfo({ minFreqKhz: this.minFreqKhz, maxFreqKhz: this.maxFreqKhz });
+      } else if (key === 'bandwidth') {
+        const bwKhz = (parseFloat(val) || 30000000) / 1000;
+        this.maxFreqKhz = this.minFreqKhz + bwKhz;
+        this.onServerInfo({ minFreqKhz: this.minFreqKhz, maxFreqKhz: this.maxFreqKhz });
+      } else if (key === 'load_cfg') {
+        try {
+          const cfg = JSON.parse(val);
+          this.onServerInfo({ name: cfg.rx_name || this.host, location: cfg.rx_qth || '' });
+        } catch (_) {}
+      }
+    }
+  }
+
+  handleAudioFrame(buffer) {
+    const view = new DataView(buffer);
+    if (buffer.byteLength < 10) return;
+    if (view.getUint8(0) !== 0x53 || view.getUint8(1) !== 0x4E || view.getUint8(2) !== 0x44) return;
+
+    const flags = view.getUint8(3);
+    const sMeterRaw = view.getUint16(8, false);
+    this.currentDbm = (sMeterRaw / 10.0) - 127.0;
+    this.onSMeter(this.currentDbm);
+
+    const isCompressed = (flags & 0x10) !== 0;
+    let offset = 10;
+
+    if (isCompressed) {
+      let predictor = view.getInt16(offset, true);
+      let stepIndex = view.getUint8(offset + 2);
+      offset += 3;
+
+      for (let i = offset; i < buffer.byteLength; i++) {
+        const byte = view.getUint8(i);
+        const nibbles = [byte & 0x0F, (byte >> 4) & 0x0F];
+        for (let n = 0; n < 2; n++) {
+          const nibble = nibbles[n];
+          const step = this.stepSizeTable[stepIndex];
+          let diff = step >> 3;
+          if (nibble & 1) diff += step >> 2;
+          if (nibble & 2) diff += step >> 1;
+          if (nibble & 4) diff += step;
+          predictor += (nibble & 8) ? -diff : diff;
+          predictor = Math.max(-32768, Math.min(32767, predictor));
+          stepIndex = Math.max(0, Math.min(88, stepIndex + this.indexAdjustTable[nibble]));
+          this.pushSample(predictor / 32768.0);
+        }
+      }
+    } else {
+      for (let i = offset; i + 1 < buffer.byteLength; i += 2) {
+        this.pushSample(view.getInt16(i, false) / 32768.0);
+      }
+    }
+  }
+
+  pushSample(floatSample) {
+    if (this.isRecordingWav) {
+      this.wavChunks.push(Math.max(-1, Math.min(1, floatSample)));
+    }
+    if (this.bufferedSamples >= this.ringBuffer.length - 1) {
+      this.readPtr = (this.readPtr + 1) % this.ringBuffer.length;
+      this.bufferedSamples--;
+    }
+    this.ringBuffer[this.writePtr] = floatSample;
+    this.writePtr = (this.writePtr + 1) % this.ringBuffer.length;
+    this.bufferedSamples++;
+  }
+
+  handleWaterfallFrame(buffer) {
+    const view = new DataView(buffer);
+    if (buffer.byteLength <= 16) return;
+    if (view.getUint8(0) !== 0x57 || view.getUint8(1) !== 0x2F || view.getUint8(2) !== 0x46) return;
+    const bins = new Uint8Array(buffer, 16);
+    this.onWaterfallLine(bins);
+  }
+}
+
+/* ================= LOGIQUE INTERFACE VIZSDR v0.3.0 ================= */
+const KIWI_FILTERS = {
+  am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
+  fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
+  lsb: { normal: [-2700, -300],  narrow: [-1800, -300], wide: [-3500, -200] },
+  usb: { normal: [300, 2700],    narrow: [300, 1800],   wide: [200, 3500] },
+  cw:  { normal: [300, 700],     narrow: [470, 530],    wide: [100, 1000] }
+};
+
+const state = {
+  lang: localStorage.getItem('viz_lang') || 'fr',
+  freqKhz: 4625.0,
+  minFreqKhz: 0,
+  maxFreqKhz: 30000,
+  mode: 'am',
+  widthState: 'normal',
+  customFilters: JSON.parse(localStorage.getItem('viz_filters') || 'null') || JSON.parse(JSON.stringify(KIWI_FILTERS)),
+  zoom: 7,
+  wfMin: -135,
+  wfMax: -45,
+  colormap: 'kiwi',
+  beacons: JSON.parse(localStorage.getItem('viz_beacons') || '[{"name":"UVB-76","freq":4625,"mode":"usb","width":"narrow"}]'),
+  directory: JSON.parse(localStorage.getItem('viz_dir') || '[{"name":"Priyom.org","url":"https://priyom.org"},{"name":"SigIDWiki","url":"https://www.sigidwiki.com"},{"name":"Short-Wave.info","url":"https://www.short-wave.info"},{"name":"KiwiSDR Map","url":"http://rx.linkfanel.net"}]'),
+  recentHosts: JSON.parse(localStorage.getItem('viz_hosts') || '[]')
+};
+
+const I18N = {
+  fr: {
+    disconnected: 'Déconnecté',
+    connecting: 'Connexion...',
+    connected: 'Connecté à',
+    offlineTitle: 'Non connecté à un serveur KiwiSDR',
+    offlineDesc: 'Choisissez un récepteur sur la carte publique KiwiSDR ou entrez une adresse personnalisée.',
+    openMap: 'Carte KiwiSDR',
+    customConn: 'Connexion perso',
+    enterFreq: 'Fréquence (kHz)',
+    saveBeacon: 'Balise',
+    beaconsTitle: 'Balises & Fréquences sauvegardées',
+    settingsTitle: 'Paramètres VizSDR v0.3.0',
+    connSection: 'Connexion KiwiSDR',
+    disconnect: 'Déconnecter',
+    connect: 'Connecter',
+    idLangSection: 'Indicatif & Langue',
+    language: 'Langue',
+    wfSection: 'Waterfall (Style KiwiSDR)',
+    colormap: 'Palette de couleurs',
+    wfSpeed: 'Vitesse défilement',
+    recSection: 'Enregistrement Audio (REC)',
+    dirSection: 'Répertoire HF & Outils'
+  },
+  en: {
+    disconnected: 'Disconnected',
+    connecting: 'Connecting...',
+    connected: 'Connected to',
+    offlineTitle: 'Not connected to a KiwiSDR server',
+    offlineDesc: 'Pick a receiver from the public KiwiSDR map or enter a custom server address.',
+    openMap: 'KiwiSDR Map',
+    customConn: 'Custom Connection',
+    enterFreq: 'Frequency (kHz)',
+    saveBeacon: 'Beacon',
+    beaconsTitle: 'Beacons & Saved Frequencies',
+    settingsTitle: 'VizSDR v0.3.0 Settings',
+    connSection: 'KiwiSDR Connection',
+    disconnect: 'Disconnect',
+    connect: 'Connect',
+    idLangSection: 'Callsign & Language',
+    language: 'Language',
+    wfSection: 'Waterfall (KiwiSDR Style)',
+    colormap: 'Colormap',
+    wfSpeed: 'Scroll speed',
+    recSection: 'Audio Recording (REC)',
+    dirSection: 'HF Directory & Tools'
+  }
+};
+
+// Canvas Waterfall
+const wfCanvas = document.getElementById('wf-canvas');
+const wfCtx = wfCanvas.getContext('2d', { alpha: false });
+let wfHistory = [];
+
+function resizeCanvas() {
+  const rect = wfCanvas.parentElement.getBoundingClientRect();
+  wfCanvas.width = Math.max(300, Math.floor(rect.width));
+  wfCanvas.height = Math.max(120, Math.floor(rect.height));
+  redrawWaterfall();
+}
+window.addEventListener('resize', resizeCanvas);
+
+function getColorLUT(name) {
+  const lut = new Uint8ClampedArray(256 * 3);
+  for (let i = 0; i < 256; i++) {
+    const t = i / 255;
+    let r = 0, g = 0, b = 0;
+    if (name === 'grey') {
+      r = g = b = i;
+    } else if (name === 'viridis') {
+      r = Math.round(255 * Math.min(1, Math.max(0, 1.5 * t - 0.3)));
+      g = Math.round(255 * Math.sin(t * Math.PI * 0.85));
+      b = Math.round(255 * (1 - t * 0.7));
+    } else if (name === 'cutesdr') {
+      r = Math.round(255 * Math.pow(t, 1.4));
+      g = Math.round(255 * Math.max(0, 2 * t - 0.6));
+      b = Math.round(255 * Math.sin(t * Math.PI));
+    } else {
+      if (t < 0.25) { b = Math.round(t * 4 * 160); }
+      else if (t < 0.55) { const k = (t - 0.25) / 0.3; g = Math.round(k * 220); b = Math.round(160 + k * 95); }
+      else if (t < 0.82) { const k = (t - 0.55) / 0.27; r = Math.round(k * 255); g = 220 + Math.round(k * 35); b = Math.round(255 * (1 - k)); }
+      else { const k = (t - 0.82) / 0.18; r = 255; g = Math.round(255 * (1 - k * 0.85)); b = Math.round(k * 180); }
+    }
+    lut[i * 3] = r;
+    lut[i * 3 + 1] = g;
+    lut[i * 3 + 2] = b;
+  }
+  return lut;
+}
+let currentLUT = getColorLUT('kiwi');
+
+function pushWaterfallRow(bins) {
+  wfHistory.unshift({ bins: new Uint8Array(bins), centerKhz: state.freqKhz, zoom: state.zoom });
+  if (wfHistory.length > wfCanvas.height) wfHistory.length = wfCanvas.height;
+  redrawWaterfall();
+}
+
+function redrawWaterfall() {
+  const w = wfCanvas.width;
+  const h = wfCanvas.height;
+  const img = wfCtx.createImageData(w, h);
+  const data = img.data;
+  const spanTotal = Math.max(1, state.maxFreqKhz - state.minFreqKhz);
+  const curSpan = spanTotal / Math.pow(2, state.zoom);
+  const curLeft = state.freqKhz - curSpan / 2;
+
+  for (let y = 0; y < Math.min(h, wfHistory.length); y++) {
+    const row = wfHistory[y];
+    const rowSpan = spanTotal / Math.pow(2, row.zoom);
+    const rowLeft = row.centerKhz - rowSpan / 2;
+    const bins = row.bins;
+
+    for (let x = 0; x < w; x++) {
+      const freqAtX = curLeft + (x / w) * curSpan;
+      const norm = (freqAtX - rowLeft) / rowSpan;
+      const pIdx = (y * w + x) * 4;
+      if (norm < 0 || norm >= 1) {
+        data[pIdx] = 5; data[pIdx + 1] = 7; data[pIdx + 2] = 10; data[pIdx + 3] = 255;
+      } else {
+        const bIdx = Math.floor(norm * bins.length);
+        const dbm = bins[bIdx] - 255;
+        const scaled = Math.max(0, Math.min(255, Math.round(((dbm - state.wfMin) / Math.max(1, state.wfMax - state.wfMin)) * 255)));
+        data[pIdx] = currentLUT[scaled * 3];
+        data[pIdx + 1] = currentLUT[scaled * 3 + 1];
+        data[pIdx + 2] = currentLUT[scaled * 3 + 2];
+        data[pIdx + 3] = 255;
+      }
+    }
+  }
+  wfCtx.putImageData(img, 0, 0);
+  renderBeaconTags();
+}
+
+// Instance Moteur KiwiSDR
+const engine = new KiwiSDREngine({
+  onWaterfallLine: (bins) => pushWaterfallRow(bins),
+  onSMeter: (dbm) => {
+    document.getElementById('dbm-val').textContent = `${dbm.toFixed(1)} dBm`;
+    const pct = Math.max(0, Math.min(100, ((dbm + 140) / 110) * 100));
+    document.getElementById('smeter-fill').style.width = `${pct}%`;
+  },
+  onStatusChange: (status, info) => {
+    const dot = document.getElementById('status-dot');
+    const txt = document.getElementById('status-text');
+    const popup = document.getElementById('offline-popup');
+    const diag = document.getElementById('offline-diag');
+    dot.className = 'status-dot ' + status;
+
+    if (status === 'connected') {
+      txt.textContent = `${I18N[state.lang].connected} ${info}`;
+      popup.classList.add('hidden');
+    } else if (status === 'connecting') {
+      txt.textContent = `${I18N[state.lang].connecting} (${info})`;
+    } else if (status === 'error') {
+      txt.textContent = info;
+      popup.classList.remove('hidden');
+      diag.textContent = info;
+    } else {
+      txt.textContent = I18N[state.lang].disconnected;
+      popup.classList.remove('hidden');
+    }
+  },
+  onServerInfo: (info) => {
+    if (typeof info.minFreqKhz === 'number') state.minFreqKhz = info.minFreqKhz;
+    if (typeof info.maxFreqKhz === 'number') state.maxFreqKhz = info.maxFreqKhz;
+    if (info.name) {
+      document.getElementById('status-text').textContent = `${I18N[state.lang].connected} ${info.name}`;
+    }
+    setFrequency(state.freqKhz);
+  }
+});
+
+// Mise à jour fréquence & mode
+function setFrequency(newFreq) {
+  state.freqKhz = Math.max(state.minFreqKhz, Math.min(state.maxFreqKhz, newFreq));
+  const formatted = state.freqKhz.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('freq-display').textContent = `${formatted} kHz`;
+  const [low, high] = state.customFilters[state.mode][state.widthState];
+  engine.setTune(state.freqKhz, state.mode, low, high);
+  updatePassbandCursor();
+  redrawWaterfall();
+}
+
+function updateModeUI() {
+  const suffix = state.widthState === 'narrow' ? 'N' : (state.widthState === 'wide' ? 'W' : '');
+  const label = state.mode.toUpperCase() + suffix;
+
+  const topBadge = document.getElementById('top-mode-badge');
+  topBadge.textContent = label;
+  topBadge.className = state.widthState === 'narrow' ? 'narrow' : (state.widthState === 'wide' ? 'wide' : '');
+
+  document.querySelectorAll('.mode-btn').forEach((btn) => {
+    const m = btn.dataset.mode;
+    btn.classList.remove('active-normal', 'active-narrow', 'active-wide');
+    if (m === state.mode) {
+      btn.textContent = label;
+      btn.classList.add(`active-${state.widthState}`);
+    } else {
+      btn.textContent = m.toUpperCase();
+    }
+  });
+
+  const customBtn = document.getElementById('custom-filter-btn');
+  if (state.widthState === 'narrow') {
+    customBtn.className = 'narrow';
+    customBtn.textContent = 'Custom Narrow';
+  } else if (state.widthState === 'wide') {
+    customBtn.className = 'wide';
+    customBtn.textContent = 'Custom Wide';
+  } else {
+    customBtn.className = '';
+  }
+
+  const [low, high] = state.customFilters[state.mode][state.widthState];
+  engine.setTune(state.freqKhz, state.mode, low, high);
+  updatePassbandCursor();
+}
+
+function updatePassbandCursor() {
+  const spanTotal = Math.max(1, state.maxFreqKhz - state.minFreqKhz);
+  const curSpanHz = (spanTotal / Math.pow(2, state.zoom)) * 1000;
+  const [low, high] = state.customFilters[state.mode][state.widthState];
+  const bwHz = Math.max(50, high - low);
+  const widthPx = Math.max(6, Math.min(wfCanvas.width * 0.8, (bwHz / curSpanHz) * wfCanvas.width));
+  document.getElementById('passband-shade').style.width = `${widthPx}px`;
+}
+
+function updateZoomUI() {
+  const spanTotal = Math.max(1, state.maxFreqKhz - state.minFreqKhz);
+  const curSpanKhz = spanTotal / Math.pow(2, state.zoom);
+  document.getElementById('span-label').textContent = curSpanKhz >= 1000
+    ? `${(curSpanKhz / 1000).toFixed(2)} MHz`
+    : `${curSpanKhz.toFixed(1)} kHz`;
+  engine.setZoom(state.zoom);
+  updatePassbandCursor();
+  redrawWaterfall();
+}
+
+// Boutons Modes (Cycle Blanc -> Rouge -> Jaune -> Blanc)
+document.querySelectorAll('.mode-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const m = btn.dataset.mode;
+    if (state.mode !== m) {
+      state.mode = m;
+      state.widthState = 'normal';
+    } else {
+      state.widthState = state.widthState === 'normal' ? 'narrow' : (state.widthState === 'narrow' ? 'wide' : 'normal');
+    }
+    updateModeUI();
+  });
+});
+
+// Zoom + / -
+document.getElementById('btn-zoom-in').addEventListener('click', () => {
+  if (state.zoom < 14) { state.zoom++; updateZoomUI(); }
+});
+document.getElementById('btn-zoom-out').addEventListener('click', () => {
+  if (state.zoom > 0) { state.zoom--; updateZoomUI(); }
+});
+
+// Glissement tactile sur le Waterfall
+let isDraggingWf = false;
+let dragStartX = 0;
+let dragStartFreq = 0;
+
+wfCanvas.addEventListener('pointerdown', (e) => {
+  isDraggingWf = true;
+  dragStartX = e.clientX;
+  dragStartFreq = state.freqKhz;
+  wfCanvas.setPointerCapture(e.pointerId);
+});
+wfCanvas.addEventListener('pointermove', (e) => {
+  if (!isDraggingWf) return;
+  const dx = e.clientX - dragStartX;
+  const spanTotal = Math.max(1, state.maxFreqKhz - state.minFreqKhz);
+  const curSpan = spanTotal / Math.pow(2, state.zoom);
+  const deltaKhz = -(dx / wfCanvas.width) * curSpan;
+  setFrequency(dragStartFreq + deltaKhz);
+});
+wfCanvas.addEventListener('pointerup', () => { isDraggingWf = false; });
+
+// Poignées de redimensionnement déportées à droite en rouge
+function bindResizeHandle(handleId, cssVar, isTop) {
+  const el = document.getElementById(handleId);
+  let dragging = false;
+  el.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    el.setPointerCapture(e.pointerId);
+    e.stopPropagation();
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const vh = window.innerHeight;
+    const rawPct = isTop ? (e.clientY / vh) * 100 : ((vh - e.clientY) / vh) * 100;
+    const clamped = Math.max(10, Math.min(34, rawPct));
+    document.documentElement.style.setProperty(cssVar, `${clamped.toFixed(1)}vh`);
+    resizeCanvas();
+  });
+  el.addEventListener('pointerup', () => { dragging = false; });
+}
+bindResizeHandle('handle-top', '--top-h', true);
+bindResizeHandle('handle-bot', '--bot-h', false);
+
+// Modales & Navigation
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeAllModals() { document.querySelectorAll('.modal-backdrop').forEach((m) => m.classList.remove('open')); }
+document.querySelectorAll('.close-modal').forEach((b) => b.addEventListener('click', closeAllModals));
+
+document.getElementById('freq-display').addEventListener('click', () => {
+  document.getElementById('freq-input').value = state.freqKhz.toFixed(2);
+  openModal('freq-modal');
+});
+document.getElementById('btn-apply-freq').addEventListener('click', () => {
+  const v = parseFloat(document.getElementById('freq-input').value);
+  if (!isNaN(v)) setFrequency(v);
+  closeAllModals();
+});
+
+// Custom Narrow / Wide
+document.getElementById('custom-filter-btn').addEventListener('click', () => {
+  const [low, high] = state.customFilters[state.mode][state.widthState];
+  document.getElementById('filter-modal-title').textContent = `${state.mode.toUpperCase()} (${state.widthState.toUpperCase()})`;
+  document.getElementById('filter-low').value = low;
+  document.getElementById('filter-high').value = high;
+  openModal('filter-modal');
+});
+document.getElementById('btn-apply-filter').addEventListener('click', () => {
+  const low = parseInt(document.getElementById('filter-low').value, 10);
+  const high = parseInt(document.getElementById('filter-high').value, 10);
+  if (!isNaN(low) && !isNaN(high) && high > low) {
+    state.customFilters[state.mode][state.widthState] = [low, high];
+    localStorage.setItem('viz_filters', JSON.stringify(state.customFilters));
+    updateModeUI();
+  }
+  closeAllModals();
+});
+document.getElementById('btn-reset-filter').addEventListener('click', () => {
+  state.customFilters[state.mode][state.widthState] = [...KIWI_FILTERS[state.mode][state.widthState]];
+  localStorage.setItem('viz_filters', JSON.stringify(state.customFilters));
+  updateModeUI();
+  closeAllModals();
+});
+
+// Balises (Bookmarks)
+function renderBeaconTags() {
+  const overlay = document.getElementById('beacon-overlay');
+  overlay.innerHTML = '';
+  const spanTotal = Math.max(1, state.maxFreqKhz - state.minFreqKhz);
+  const curSpan = spanTotal / Math.pow(2, state.zoom);
+  const leftKhz = state.freqKhz - curSpan / 2;
+  const rightKhz = state.freqKhz + curSpan / 2;
+
+  state.beacons.forEach((b) => {
+    if (b.freq >= leftKhz && b.freq <= rightKhz) {
+      const pct = ((b.freq - leftKhz) / curSpan) * 100;
+      const tag = document.createElement('div');
+      tag.className = 'beacon-tag';
+      tag.style.left = `${pct}%`;
+      tag.textContent = `★ ${b.name}`;
+      tag.onclick = () => {
+        state.mode = b.mode || 'am';
+        state.widthState = b.width || 'normal';
+        setFrequency(b.freq);
+        updateModeUI();
+      };
+      overlay.appendChild(tag);
+    }
+  });
+}
+
+function renderBeaconsList() {
+  const list = document.getElementById('beacons-list');
+  list.innerHTML = '';
+  state.beacons.forEach((b, idx) => {
+    const row = document.createElement('div');
+    row.className = 'beacon-item';
+    row.innerHTML = `<span><strong>${b.name}</strong> — ${b.freq.toFixed(2)} kHz (${b.mode.toUpperCase()})</span>`;
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.gap = '6px';
+    const goBtn = document.createElement('button');
+    goBtn.className = 'btn-primary';
+    goBtn.textContent = 'Go';
+    goBtn.onclick = () => {
+      state.mode = b.mode;
+      state.widthState = b.width;
+      setFrequency(b.freq);
+      updateModeUI();
+      closeAllModals();
+    };
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn-secondary';
+    delBtn.textContent = '✕';
+    delBtn.onclick = () => {
+      state.beacons.splice(idx, 1);
+      localStorage.setItem('viz_beacons', JSON.stringify(state.beacons));
+      renderBeaconsList();
+      renderBeaconTags();
+    };
+    actions.append(goBtn, delBtn);
+    row.appendChild(actions);
+    list.appendChild(row);
+  });
+}
+
+document.getElementById('btn-beacons').addEventListener('click', () => { renderBeaconsList(); openModal('beacons-modal'); });
+document.getElementById('btn-add-beacon').addEventListener('click', () => {
+  const name = document.getElementById('beacon-name-input').value.trim() || `${state.freqKhz.toFixed(1)} kHz`;
+  state.beacons.push({ name, freq: state.freqKhz, mode: state.mode, width: state.widthState });
+  localStorage.setItem('viz_beacons', JSON.stringify(state.beacons));
+  document.getElementById('beacon-name-input').value = '';
+  renderBeaconsList();
+  renderBeaconTags();
+});
+document.getElementById('btn-save-beacon-quick').addEventListener('click', () => {
+  const v = parseFloat(document.getElementById('freq-input').value);
+  if (!isNaN(v)) {
+    state.beacons.push({ name: `${v.toFixed(1)} kHz`, freq: v, mode: state.mode, width: state.widthState });
+    localStorage.setItem('viz_beacons', JSON.stringify(state.beacons));
+    renderBeaconTags();
+  }
+  closeAllModals();
+});
+
+// Enregistrement Audio (WAV 16-bit & WebM) + Pont Android
+let mediaRecorder = null;
+let webmChunks = [];
+let recSeconds = 0;
+let recTimer = null;
+
+function exportWavFile(samples, sampleRate, filename) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const writeStr = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  view.setUint32(40, samples.length * 2, true);
+  for (let i = 0; i < samples.length; i++) {
+    view.setInt16(44 + i * 2, Math.max(-32768, Math.min(32767, samples[i] * 32767)), true);
+  }
+  saveBinaryBlob(new Blob([buffer], { type: 'audio/wav' }), filename, 'audio/wav');
+}
+
+function saveBinaryBlob(blob, filename, mimeType) {
+  if (window.AndroidBridge && typeof window.AndroidBridge.saveAudioFile === 'function') {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result.split(',')[1];
+      window.AndroidBridge.saveAudioFile(base64, filename, mimeType);
+    };
+    reader.readAsDataURL(blob);
+  } else {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+}
+
+document.getElementById('btn-rec').addEventListener('click', () => {
+  const btn = document.getElementById('btn-rec');
+  const fmt = document.getElementById('rec-format').value;
+  engine.initAudio();
+
+  if (!btn.classList.contains('recording')) {
+    btn.classList.add('recording');
+    recSeconds = 0;
+    btn.textContent = '■ 00:00';
+    recTimer = setInterval(() => {
+      recSeconds++;
+      const m = String(Math.floor(recSeconds / 60)).padStart(2, '0');
+      const s = String(recSeconds % 60).padStart(2, '0');
+      btn.textContent = `■ ${m}:${s}`;
+    }, 1000);
+
+    if (fmt === 'wav') {
+      engine.wavChunks = [];
+      engine.isRecordingWav = true;
+    } else if (window.MediaRecorder && engine.mediaDest) {
+      webmChunks = [];
+      mediaRecorder = new MediaRecorder(engine.mediaDest.stream);
+      mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) webmChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        const fname = `VizSDR_${state.freqKhz.toFixed(2)}kHz_${state.mode.toUpperCase()}.webm`;
+        saveBinaryBlob(new Blob(webmChunks, { type: 'audio/webm' }), fname, 'audio/webm');
+      };
+      mediaRecorder.start();
+    }
+  } else {
+    btn.classList.remove('recording');
+    clearInterval(recTimer);
+    btn.textContent = '● REC';
+    if (engine.isRecordingWav) {
+      engine.isRecordingWav = false;
+      const fname = `VizSDR_${state.freqKhz.toFixed(2)}kHz_${state.mode.toUpperCase()}.wav`;
+      exportWavFile(engine.wavChunks, 12000, fname);
+      engine.wavChunks = [];
+    } else if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+  }
+});
+
+// Contrôles Audio
+document.getElementById('btn-mute').addEventListener('click', (e) => {
+  engine.initAudio();
+  engine.muted = !engine.muted;
+  e.target.classList.toggle('muted', engine.muted);
+  e.target.textContent = engine.muted ? '🔇 MUTE' : '🔊 ON';
+});
+document.getElementById('vol-slider').addEventListener('input', (e) => {
+  engine.volume = parseInt(e.target.value, 10) / 100;
+});
+document.getElementById('sql-slider').addEventListener('input', (e) => {
+  engine.squelchDbm = parseInt(e.target.value, 10);
+});
+document.getElementById('btn-agc').addEventListener('click', (e) => {
+  engine.agcOn = !engine.agcOn;
+  e.target.textContent = `AGC: ${engine.agcOn ? 'ON' : 'OFF'}`;
+  engine.sendAGC();
+});
+
+// Paramètres & Connexion
+document.getElementById('btn-settings').addEventListener('click', () => { renderDirectory(); openModal('settings-modal'); });
+document.getElementById('btn-quick-custom').addEventListener('click', () => { openModal('settings-modal'); document.getElementById('custom-host-input').focus(); });
+
+function connectToHost(host) {
+  if (!host) return;
+  engine.callsign = document.getElementById('callsign-input').value.trim() || 'VizSDR_User';
+  if (!state.recentHosts.includes(host)) {
+    state.recentHosts.unshift(host);
+    state.recentHosts = state.recentHosts.slice(0, 5);
+    localStorage.setItem('viz_hosts', JSON.stringify(state.recentHosts));
+  }
+  closeAllModals();
+  engine.connect(host);
+}
+
+document.getElementById('btn-connect-custom').addEventListener('click', () => {
+  connectToHost(document.getElementById('custom-host-input').value);
+});
+document.getElementById('btn-disconnect').addEventListener('click', () => engine.disconnect());
+
+// Carte KiwiSDR intégrée
+function openKiwiMap() {
+  closeAllModals();
+  const frame = document.getElementById('kiwimap-frame');
+  if (frame.src === 'about:blank') frame.src = 'http://rx.linkfanel.net/';
+  openModal('map-modal');
+}
+document.getElementById('btn-open-kiwimap').addEventListener('click', openKiwiMap);
+document.getElementById('btn-quick-map').addEventListener('click', openKiwiMap);
+
+// Waterfall Settings
+document.getElementById('wf-colormap').addEventListener('change', (e) => {
+  state.colormap = e.target.value;
+  currentLUT = getColorLUT(state.colormap);
+  redrawWaterfall();
+});
+document.getElementById('wf-min').addEventListener('change', (e) => { state.wfMin = parseInt(e.target.value, 10) || -135; redrawWaterfall(); });
+document.getElementById('wf-max').addEventListener('change', (e) => { state.wfMax = parseInt(e.target.value, 10) || -45; redrawWaterfall(); });
+document.getElementById('wf-speed').addEventListener('change', (e) => engine.setWaterfallSpeed(parseInt(e.target.value, 10)));
+document.getElementById('btn-wf-autoscale').addEventListener('click', () => {
+  if (wfHistory.length > 0) {
+    const latest = wfHistory[0].bins;
+    let min = 255, max = 0;
+    for (let i = 0; i < latest.length; i++) {
+      if (latest[i] < min) min = latest[i];
+      if (latest[i] > max) max = latest[i];
+    }
+    state.wfMin = (min - 255) - 5;
+    state.wfMax = (max - 255) + 5;
+    document.getElementById('wf-min').value = state.wfMin;
+    document.getElementById('wf-max').value = state.wfMax;
+    redrawWaterfall();
+  }
+});
+
+// Répertoire HF
+function renderDirectory() {
+  const list = document.getElementById('dir-list');
+  list.innerHTML = '';
+  state.directory.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = 'dir-item';
+    row.innerHTML = `<a href="${item.url}" target="_blank" style="color:#93c5fd; text-decoration:none; font-weight:600;">${item.name} ↗</a>`;
+    const del = document.createElement('button');
+    del.className = 'btn-secondary';
+    del.textContent = '✕';
+    del.onclick = () => {
+      state.directory.splice(idx, 1);
+      localStorage.setItem('viz_dir', JSON.stringify(state.directory));
+      renderDirectory();
+    };
+    row.appendChild(del);
+    list.appendChild(row);
+  });
+}
+document.getElementById('btn-add-dir').addEventListener('click', () => {
+  const name = document.getElementById('dir-name').value.trim();
+  const url = document.getElementById('dir-url').value.trim();
+  if (name && url) {
+    state.directory.push({ name, url: url.startsWith('http') ? url : `https://${url}` });
+    localStorage.setItem('viz_dir', JSON.stringify(state.directory));
+    document.getElementById('dir-name').value = '';
+    document.getElementById('dir-url').value = '';
+    renderDirectory();
+  }
+});
+
+// Langue & Easter Egg (Triple-clic FR = Baguette, EN = Tasse de thé)
+let eggClicks = { fr: 0, en: 0 };
+let eggTimers = { fr: null, en: null };
+
+function triggerEasterEgg(emoji) {
+  const toast = document.getElementById('easter-egg-toast');
+  toast.textContent = emoji;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1400);
+}
+
+function applyLanguage(lang) {
+  state.lang = lang;
+  localStorage.setItem('viz_lang', lang);
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    const key = el.dataset.i18n;
+    if (I18N[lang][key]) el.textContent = I18N[lang][key];
+  });
+}
+
+document.getElementById('lang-fr').addEventListener('click', () => {
+  applyLanguage('fr');
+  eggClicks.fr++;
+  clearTimeout(eggTimers.fr);
+  eggTimers.fr = setTimeout(() => { eggClicks.fr = 0; }, 1200);
+  if (eggClicks.fr >= 3) { eggClicks.fr = 0; triggerEasterEgg('🥖'); }
+});
+
+document.getElementById('lang-en').addEventListener('click', () => {
+  applyLanguage('en');
+  eggClicks.en++;
+  clearTimeout(eggTimers.en);
+  eggTimers.en = setTimeout(() => { eggClicks.en = 0; }, 1200);
+  if (eggClicks.en >= 3) { eggClicks.en = 0; triggerEasterEgg('🍵'); }
+});
+
+// Pont appelé par Android lorsqu'un KiwiSDR est cliqué sur la carte
+window.onAndroidKiwiSelected = function(hostUrl) {
+  connectToHost(hostUrl);
+};
+
+// Initialisation
+applyLanguage(state.lang);
+resizeCanvas();
+updateModeUI();
+updateZoomUI();
+setFrequency(state.freqKhz);
+</script>
+</body>
+</html>
