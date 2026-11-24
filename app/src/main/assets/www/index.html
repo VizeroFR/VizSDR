@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>VizSDR v0.3.1</title>
+  <title>VizSDR v0.3.2</title>
   <style>
     :root {
       --bg-dark: #0b0e14;
@@ -225,6 +225,22 @@
       width: 100%;
       height: 100%;
       display: block;
+    }
+
+    #wf-diag-badge {
+      position: absolute;
+      bottom: 6px;
+      left: 8px;
+      background: rgba(11, 14, 20, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: #94a3b8;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 12;
+      font-variant-numeric: tabular-nums;
     }
 
     #tune-cursor {
@@ -665,7 +681,7 @@
     <div class="top-left">
       <div class="brand-row">
         <span class="brand-title">VizSDR</span>
-        <span class="version-badge">v0.3.1</span>
+        <span class="version-badge">v0.3.2</span>
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text" data-i18n="disconnected">Déconnecté</span>
       </div>
@@ -694,6 +710,7 @@
   <!-- WATERFALL CENTRAL -->
   <main id="waterfall-wrap">
     <canvas id="wf-canvas"></canvas>
+    <div id="wf-diag-badge">WF: 0 lignes</div>
 
     <div id="beacon-overlay"></div>
 
@@ -826,7 +843,7 @@
 <div id="settings-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.3.1</span></h2>
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.3.2</span></h2>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
@@ -966,10 +983,13 @@ class KiwiSDREngine {
     this.squelchDbm = -135;
     this.currentDbm = -120;
 
-    this.ringBuffer = new Float32Array(48000);
+    // Buffer circulaire large (~10.9s à 12 kHz) + pré-tampon anti-hachage (~300 ms)
+    this.ringBuffer = new Float32Array(131072);
     this.writePtr = 0;
     this.readPtr = 0;
     this.bufferedSamples = 0;
+    this.prebufferTarget = 3600;
+    this.audioReadyToPlay = false;
 
     this.isRecordingWav = false;
     this.wavChunks = [];
@@ -989,7 +1009,7 @@ class KiwiSDREngine {
     if (!this.audioCtx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       this.audioCtx = new AC();
-      this.scriptNode = this.audioCtx.createScriptProcessor(2048, 0, 1);
+      this.scriptNode = this.audioCtx.createScriptProcessor(4096, 0, 1);
       this.mediaDest = this.audioCtx.createMediaStreamDestination();
 
       this.scriptNode.onaudioprocess = (e) => {
@@ -997,8 +1017,14 @@ class KiwiSDREngine {
         const ratio = 12000 / this.audioCtx.sampleRate;
         const squelchClosed = this.currentDbm < this.squelchDbm;
 
+        if (this.bufferedSamples < this.prebufferTarget) {
+          this.audioReadyToPlay = false;
+        } else if (this.bufferedSamples >= this.prebufferTarget * 1.25) {
+          this.audioReadyToPlay = true;
+        }
+
         for (let i = 0; i < out.length; i++) {
-          if (this.muted || squelchClosed || this.bufferedSamples < 2) {
+          if (this.muted || squelchClosed || !this.audioReadyToPlay || this.bufferedSamples < 2) {
             out[i] = 0;
           } else {
             const idx0 = Math.floor(this.readPtr) % this.ringBuffer.length;
@@ -1104,6 +1130,7 @@ class KiwiSDREngine {
     if (this.wsWf) { try { this.wsWf.close(); } catch (_) {} this.wsWf = null; }
     this.connected = false;
     this.bufferedSamples = 0;
+    this.audioReadyToPlay = false;
     this.onStatusChange('disconnected', '');
   }
 
@@ -1193,7 +1220,7 @@ class KiwiSDREngine {
 
     if (isCompressed) {
       let predictor = view.getInt16(offset, true);
-      let stepIndex = view.getUint8(offset + 2);
+      let stepIndex = Math.max(0, Math.min(88, view.getUint8(offset + 2)));
       offset += 3;
 
       for (let i = offset; i < buffer.byteLength; i++) {
@@ -1223,7 +1250,7 @@ class KiwiSDREngine {
     if (this.isRecordingWav) {
       this.wavChunks.push(Math.max(-1, Math.min(1, floatSample)));
     }
-    if (this.bufferedSamples >= this.ringBuffer.length - 1) {
+    if (this.bufferedSamples >= this.ringBuffer.length - 2) {
       this.readPtr = (this.readPtr + 1) % this.ringBuffer.length;
       this.bufferedSamples--;
     }
@@ -1234,8 +1261,7 @@ class KiwiSDREngine {
 
   handleWaterfallFrame(buffer) {
     const view = new DataView(buffer);
-    if (buffer.byteLength <= 16) return;
-    // Vérifie 'W/F' (0x57 0x2F 0x46)
+    if (buffer.byteLength < 20) return;
     if (view.getUint8(0) !== 0x57 || view.getUint8(1) !== 0x2F || view.getUint8(2) !== 0x46) return;
 
     const flags = view.getUint32(8, true);
@@ -1271,7 +1297,7 @@ class KiwiSDREngine {
   }
 }
 
-/* ================= LOGIQUE INTERFACE VIZSDR v0.3.1 ================= */
+/* ================= LOGIQUE INTERFACE VIZSDR v0.3.2 ================= */
 const KIWI_FILTERS = {
   am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
   fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
@@ -1309,7 +1335,7 @@ const I18N = {
     enterFreq: 'Fréquence (kHz)',
     saveBeacon: 'Balise',
     beaconsTitle: 'Balises & Fréquences sauvegardées',
-    settingsTitle: 'Paramètres VizSDR v0.3.1',
+    settingsTitle: 'Paramètres VizSDR v0.3.2',
     connSection: 'Connexion KiwiSDR',
     disconnect: 'Déconnecter',
     connect: 'Connecter',
@@ -1332,7 +1358,7 @@ const I18N = {
     enterFreq: 'Frequency (kHz)',
     saveBeacon: 'Beacon',
     beaconsTitle: 'Beacons & Saved Frequencies',
-    settingsTitle: 'VizSDR v0.3.1 Settings',
+    settingsTitle: 'VizSDR v0.3.2 Settings',
     connSection: 'KiwiSDR Connection',
     disconnect: 'Disconnect',
     connect: 'Connect',
@@ -1350,7 +1376,9 @@ const I18N = {
 const wfWrap = document.getElementById('waterfall-wrap');
 const wfCanvas = document.getElementById('wf-canvas');
 const wfCtx = wfCanvas.getContext('2d', { alpha: false });
+const wfDiagBadge = document.getElementById('wf-diag-badge');
 let wfHistory = [];
+let wfLineCount = 0;
 
 function resizeCanvas() {
   const rect = wfWrap.getBoundingClientRect();
@@ -1398,6 +1426,8 @@ let currentLUT = getColorLUT('kiwi');
 
 function pushWaterfallRow(bins) {
   if (wfCanvas.width < 10 || wfCanvas.height < 10) resizeCanvas();
+  wfLineCount++;
+  wfDiagBadge.textContent = `WF: ${wfLineCount} lignes (${bins.length} bins)`;
   wfHistory.unshift({ bins: new Uint8Array(bins), centerKhz: state.freqKhz, zoom: state.zoom });
   if (wfHistory.length > wfCanvas.height) wfHistory.length = wfCanvas.height;
   redrawWaterfall();
@@ -1858,6 +1888,8 @@ document.getElementById('btn-quick-custom').addEventListener('click', () => { op
 function connectToHost(host) {
   if (!host) return;
   wfHistory = [];
+  wfLineCount = 0;
+  wfDiagBadge.textContent = 'WF: attente trames...';
   engine.callsign = document.getElementById('callsign-input').value.trim() || 'VizSDR_User';
   if (!state.recentHosts.includes(host)) {
     state.recentHosts.unshift(host);
