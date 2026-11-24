@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.Message
 import android.provider.MediaStore
 import android.util.Base64
 import android.view.View
@@ -48,20 +49,40 @@ class MainActivity : AppCompatActivity() {
             allowContentAccess = true
             useWideViewPort = true
             loadWithOverviewMode = true
+            setSupportMultipleWindows(true)
+            javaScriptCanOpenWindowsAutomatically = true
         }
 
         webView.addJavascriptInterface(AndroidAudioBridge(), "AndroidBridge")
-        webView.webChromeClient = WebChromeClient()
+
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onCreateWindow(
+                view: WebView?,
+                isDialog: Boolean,
+                isUserGesture: Boolean,
+                resultMsg: Message?
+            ): Boolean {
+                // Intercepte les liens target="_blank" / window.open de la carte KiwiSDR
+                val tempWebView = WebView(this@MainActivity)
+                tempWebView.webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(v: WebView?, req: WebResourceRequest?): Boolean {
+                        val url = req?.url?.toString() ?: return true
+                        handleExternalOrKiwiUrl(url)
+                        tempWebView.destroy()
+                        return true
+                    }
+                }
+                val transport = resultMsg?.obj as? WebView.WebViewTransport
+                transport?.webView = tempWebView
+                resultMsg?.sendToTarget()
+                return true
+            }
+        }
 
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
-                if (url.contains(":8073") || url.contains("kiwisdr")) {
-                    val host = request.url.host + ":" + (if (request.url.port != -1) request.url.port else 8073)
-                    webView.evaluateJavascript("window.onAndroidKiwiSelected && window.onAndroidKiwiSelected('$host');", null)
-                    return true
-                }
-                return false
+                return handleExternalOrKiwiUrl(url)
             }
         }
 
@@ -79,6 +100,30 @@ class MainActivity : AppCompatActivity() {
         })
 
         webView.loadUrl("file:///android_asset/www/index.html")
+    }
+
+    private fun handleExternalOrKiwiUrl(url: String): Boolean {
+        val uri = android.net.Uri.parse(url)
+        val host = uri.host ?: return false
+
+        // Laisser charger la carte rx.linkfanel.net et ses tuiles normalement
+        if (host.contains("linkfanel.net") || host.contains("openstreetmap") || host.contains("google") || host.contains("gstatic")) {
+            return false
+        }
+
+        // Tout autre lien cliqué depuis la carte (port 8073, proxy.kiwisdr.com, ou URL KiwiSDR) est capturé par VizSDR
+        val port = if (uri.port != -1) ":${uri.port}" else ":8073"
+        val schemePrefix = if (uri.scheme == "https") "https://" else ""
+        val target = "$schemePrefix$host$port"
+
+        runOnUiThread {
+            Toast.makeText(this, "Connexion VizSDR → $host$port", Toast.LENGTH_SHORT).show()
+            webView.evaluateJavascript(
+                "window.onAndroidKiwiSelected && window.onAndroidKiwiSelected('$target');",
+                null
+            )
+        }
+        return true
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
