@@ -2,6 +2,8 @@ package org.vizsdr.app
 
 import android.annotation.SuppressLint
 import android.content.ContentValues
+import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -62,14 +64,20 @@ class MainActivity : AppCompatActivity() {
                 isUserGesture: Boolean,
                 resultMsg: Message?
             ): Boolean {
-                // Intercepte les liens target="_blank" / window.open de la carte KiwiSDR
                 val tempWebView = WebView(this@MainActivity)
                 tempWebView.webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(v: WebView?, req: WebResourceRequest?): Boolean {
                         val url = req?.url?.toString() ?: return true
-                        handleExternalOrKiwiUrl(url)
+                        connectIfKiwiUrl(url)
                         tempWebView.destroy()
                         return true
+                    }
+
+                    override fun onPageStarted(v: WebView?, url: String?, favicon: Bitmap?) {
+                        if (url != null && connectIfKiwiUrl(url)) {
+                            tempWebView.stopLoading()
+                            tempWebView.destroy()
+                        }
                     }
                 }
                 val transport = resultMsg?.obj as? WebView.WebViewTransport
@@ -82,7 +90,21 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
-                return handleExternalOrKiwiUrl(url)
+                return connectIfKiwiUrl(url)
+            }
+
+            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                if (url != null && connectIfKiwiUrl(url)) {
+                    view?.stopLoading()
+                }
+            }
+
+            override fun onLoadResource(view: WebView?, url: String?) {
+                super.onLoadResource(view, url)
+                if (url != null && (url.contains("/kiwi/") || url.contains("kiwi.js") || url.contains("openwebrx.js"))) {
+                    connectIfKiwiUrl(url)
+                }
             }
         }
 
@@ -93,7 +115,10 @@ class MainActivity : AppCompatActivity() {
                     finish()
                 } else {
                     lastBackPressTime = now
-                    webView.evaluateJavascript("document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('open'));", null)
+                    webView.evaluateJavascript(
+                        "document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('open'));",
+                        null
+                    )
                     Toast.makeText(this@MainActivity, "Appuyez encore pour quitter VizSDR", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -102,24 +127,41 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl("file:///android_asset/www/index.html")
     }
 
-    private fun handleExternalOrKiwiUrl(url: String): Boolean {
-        val uri = android.net.Uri.parse(url)
-        val host = uri.host ?: return false
+    private fun isMapOrSystemHost(host: String): Boolean {
+        val h = host.lowercase()
+        return h.contains("linkfanel.net")
+            || h.contains("openstreetmap")
+            || h.contains("arcgisonline")
+            || h.contains("cartocdn")
+            || h.contains("google")
+            || h.contains("gstatic")
+            || h.contains("leaflet")
+            || h.contains("jquery")
+            || h.contains("cloudflare")
+    }
 
-        // Laisser charger la carte rx.linkfanel.net et ses tuiles normalement
-        if (host.contains("linkfanel.net") || host.contains("openstreetmap") || host.contains("google") || host.contains("gstatic")) {
+    private fun connectIfKiwiUrl(url: String): Boolean {
+        if (url.startsWith("file://") || url == "about:blank" || url.startsWith("data:") || url.startsWith("javascript:")) {
             return false
         }
+        val uri = Uri.parse(url)
+        val host = uri.host ?: return false
+        if (isMapOrSystemHost(host)) return false
 
-        // Tout autre lien cliqué depuis la carte (port 8073, proxy.kiwisdr.com, ou URL KiwiSDR) est capturé par VizSDR
         val port = if (uri.port != -1) ":${uri.port}" else ":8073"
         val schemePrefix = if (uri.scheme == "https") "https://" else ""
         val target = "$schemePrefix$host$port"
 
         runOnUiThread {
-            Toast.makeText(this, "Connexion VizSDR → $host$port", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Récepteur capturé : $host$port", Toast.LENGTH_SHORT).show()
             webView.evaluateJavascript(
-                "window.onAndroidKiwiSelected && window.onAndroidKiwiSelected('$target');",
+                """
+                (function() {
+                    var f = document.getElementById('kiwimap-frame');
+                    if (f) f.src = 'http://rx.linkfanel.net/';
+                    if (window.onAndroidKiwiSelected) window.onAndroidKiwiSelected('$target');
+                })();
+                """.trimIndent(),
                 null
             )
         }
