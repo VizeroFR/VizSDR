@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>VizSDR v0.3.2</title>
+  <title>VizSDR v0.4.0</title>
   <style>
     :root {
       --bg-dark: #0b0e14;
@@ -82,11 +82,7 @@
       text-overflow: ellipsis;
     }
 
-    .brand-title {
-      font-weight: 700;
-      color: #cbd5e1;
-      letter-spacing: 0.4px;
-    }
+    .brand-title { font-weight: 700; color: #cbd5e1; letter-spacing: 0.4px; }
 
     .version-badge {
       background: var(--accent-blue-dim);
@@ -110,11 +106,7 @@
     .status-dot.connecting { background: #eab308; }
     .status-dot.error { background: #ef4444; }
 
-    .freq-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    .freq-row { display: flex; align-items: center; gap: 8px; }
 
     #freq-display {
       font-size: clamp(19px, 3.2vw, 26px);
@@ -184,12 +176,7 @@
       transition: width 0.08s linear;
     }
 
-    .top-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-    }
+    .top-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
     .icon-btn {
       background: #1b2230;
@@ -231,7 +218,7 @@
       position: absolute;
       bottom: 6px;
       left: 8px;
-      background: rgba(11, 14, 20, 0.75);
+      background: rgba(11, 14, 20, 0.78);
       border: 1px solid rgba(148, 163, 184, 0.25);
       color: #94a3b8;
       font-size: 10px;
@@ -341,22 +328,9 @@
       text-align: center;
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
     }
-    .offline-card h3 {
-      font-size: 15px;
-      color: #f8fafc;
-      margin-bottom: 5px;
-    }
-    .offline-card p {
-      font-size: 12px;
-      color: #94a3b8;
-      margin-bottom: 10px;
-      line-height: 1.35;
-    }
-    .offline-actions {
-      display: flex;
-      gap: 8px;
-      justify-content: center;
-    }
+    .offline-card h3 { font-size: 15px; color: #f8fafc; margin-bottom: 5px; }
+    .offline-card p { font-size: 12px; color: #94a3b8; margin-bottom: 10px; line-height: 1.35; }
+    .offline-actions { display: flex; gap: 8px; justify-content: center; }
 
     /* ================= BARRE DU BAS ================= */
     #bottom-bar {
@@ -517,10 +491,7 @@
       border-color: #ef4444;
       color: #fca5a5;
     }
-    .ctrl-pill.muted {
-      border-color: #ef4444;
-      color: #fca5a5;
-    }
+    .ctrl-pill.muted { border-color: #ef4444; color: #fca5a5; }
 
     .slider-box {
       display: flex;
@@ -535,10 +506,7 @@
       font-weight: 700;
       color: #94a3b8;
     }
-    .slider-box input[type="range"] {
-      width: 54px;
-      accent-color: var(--accent-blue);
-    }
+    .slider-box input[type="range"] { width: 54px; accent-color: var(--accent-blue); }
 
     /* ================= MODALES & TIROIRS ================= */
     .modal-backdrop {
@@ -665,10 +633,7 @@
       transition: all 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
       filter: drop-shadow(0 8px 20px rgba(0,0,0,0.8));
     }
-    #easter-egg-toast.show {
-      opacity: 1;
-      transform: translate(-50%, -50%) scale(1.1);
-    }
+    #easter-egg-toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
 
     #map-modal .modal-box { max-width: 94vw; height: 90vh; }
     #kiwimap-frame { flex: 1; width: 100%; border: none; background: #0b0e14; }
@@ -676,12 +641,11 @@
 </head>
 <body>
 <div id="app">
-  <!-- BARRE DU HAUT -->
   <header id="top-bar">
     <div class="top-left">
       <div class="brand-row">
         <span class="brand-title">VizSDR</span>
-        <span class="version-badge">v0.3.2</span>
+        <span class="version-badge">v0.4.0</span>
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text" data-i18n="disconnected">Déconnecté</span>
       </div>
@@ -702,15 +666,14 @@
     </div>
 
     <div class="top-right">
-      <button id="btn-beacons" class="icon-btn" title="Balises / Fréquences sauvegardées">★</button>
+      <button id="btn-beacons" class="icon-btn" title="Balises">★</button>
       <button id="btn-settings" class="icon-btn" title="Paramètres">⚙</button>
     </div>
   </header>
 
-  <!-- WATERFALL CENTRAL -->
   <main id="waterfall-wrap">
     <canvas id="wf-canvas"></canvas>
-    <div id="wf-diag-badge">WF: 0 lignes</div>
+    <div id="wf-diag-badge">WF: prêt</div>
 
     <div id="beacon-overlay"></div>
 
@@ -720,10 +683,9 @@
       </div>
     </div>
 
-    <div id="handle-top" class="resize-handle" title="Ajuster hauteur barre haute"></div>
-    <div id="handle-bot" class="resize-handle" title="Ajuster hauteur barre basse"></div>
+    <div id="handle-top" class="resize-handle"></div>
+    <div id="handle-bot" class="resize-handle"></div>
 
-    <!-- Pop-up Hors-Ligne -->
     <div id="offline-popup">
       <div class="offline-card">
         <h3 data-i18n="offlineTitle">Non connecté à un serveur KiwiSDR</h3>
@@ -742,13 +704,12 @@
     </div>
   </main>
 
-  <!-- BARRE DU BAS -->
   <footer id="bottom-bar">
     <div class="bot-row-top">
       <div class="zoom-center-group">
-        <button id="btn-zoom-out" class="zoom-btn" aria-label="Zoom out">−</button>
+        <button id="btn-zoom-out" class="zoom-btn">−</button>
         <span id="span-label">234.4 kHz</span>
-        <button id="btn-zoom-in" class="zoom-btn" aria-label="Zoom in">+</button>
+        <button id="btn-zoom-in" class="zoom-btn">+</button>
       </div>
       <button id="custom-filter-btn">Custom Narrow</button>
     </div>
@@ -781,7 +742,7 @@
 
 <div id="easter-egg-toast">🥖</div>
 
-<!-- MODALE SAISIE FRÉQUENCE -->
+<!-- MODALES -->
 <div id="freq-modal" class="modal-backdrop">
   <div class="modal-box" style="max-width:340px;">
     <div class="modal-header">
@@ -798,7 +759,6 @@
   </div>
 </div>
 
-<!-- MODALE FILTRE CUSTOM NARROW / WIDE -->
 <div id="filter-modal" class="modal-backdrop">
   <div class="modal-box" style="max-width:360px;">
     <div class="modal-header">
@@ -806,14 +766,8 @@
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-row">
-        <span>Low Cut (Hz)</span>
-        <input id="filter-low" type="number" step="10" />
-      </div>
-      <div class="form-row">
-        <span>High Cut (Hz)</span>
-        <input id="filter-high" type="number" step="10" />
-      </div>
+      <div class="form-row"><span>Low Cut (Hz)</span><input id="filter-low" type="number" step="10" /></div>
+      <div class="form-row"><span>High Cut (Hz)</span><input id="filter-high" type="number" step="10" /></div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button id="btn-reset-filter" class="btn-secondary">Défaut KiwiSDR</button>
         <button id="btn-apply-filter" class="btn-primary">Appliquer</button>
@@ -822,7 +776,6 @@
   </div>
 </div>
 
-<!-- MODALE BALISES -->
 <div id="beacons-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
@@ -839,11 +792,10 @@
   </div>
 </div>
 
-<!-- MODALE PARAMÈTRES -->
 <div id="settings-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.3.2</span></h2>
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.0</span></h2>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
@@ -865,7 +817,6 @@
           <button type="button" class="btn-secondary rec-host-btn" data-host="k3fef.com:8073">🇺🇸 USA (K3FEF)</button>
           <button type="button" class="btn-secondary rec-host-btn" data-host="kiwisdr.northlandradio.nz:8073">🇳🇿 Nouvelle-Zélande</button>
         </div>
-        <div id="recent-hosts" style="display:flex; flex-wrap:wrap; gap:5px;"></div>
       </div>
 
       <div class="settings-section">
@@ -937,7 +888,6 @@
   </div>
 </div>
 
-<!-- MODALE CARTE KIWISDR -->
 <div id="map-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header" style="gap:8px;">
@@ -951,7 +901,7 @@
 </div>
 
 <script>
-/* ================= MOTEUR RÉSEAU KIWISDR RÉEL ================= */
+/* ================= MOTEUR KIWISDR v0.4.0 ================= */
 class KiwiSDREngine {
   constructor(callbacks = {}) {
     this.onWaterfallLine = callbacks.onWaterfallLine || (() => {});
@@ -983,12 +933,12 @@ class KiwiSDREngine {
     this.squelchDbm = -135;
     this.currentDbm = -120;
 
-    // Buffer circulaire large (~10.9s à 12 kHz) + pré-tampon anti-hachage (~300 ms)
+    // Tampon circulaire audio haute stabilité
     this.ringBuffer = new Float32Array(131072);
     this.writePtr = 0;
     this.readPtr = 0;
     this.bufferedSamples = 0;
-    this.prebufferTarget = 3600;
+    this.prebufferTarget = 2400; // ~200ms à 12kHz
     this.audioReadyToPlay = false;
 
     this.isRecordingWav = false;
@@ -1017,9 +967,9 @@ class KiwiSDREngine {
         const ratio = 12000 / this.audioCtx.sampleRate;
         const squelchClosed = this.currentDbm < this.squelchDbm;
 
-        if (this.bufferedSamples < this.prebufferTarget) {
+        if (this.bufferedSamples < 128) {
           this.audioReadyToPlay = false;
-        } else if (this.bufferedSamples >= this.prebufferTarget * 1.25) {
+        } else if (this.bufferedSamples >= this.prebufferTarget) {
           this.audioReadyToPlay = true;
         }
 
@@ -1054,11 +1004,6 @@ class KiwiSDREngine {
     clean = clean.replace(/^(https?|wss?):\/\//i, '');
     if (!clean.includes(':')) clean += ':8073';
     this.host = clean;
-
-    if (window.location.protocol === 'https:' && !isSecure) {
-      this.onStatusChange('error', 'Blocage navigateur HTTPS vers ws:// (utilisez l’APK Android ou wss://)');
-      return;
-    }
 
     const proto = isSecure ? 'wss' : 'ws';
     const ts = Date.now();
@@ -1101,6 +1046,7 @@ class KiwiSDREngine {
       this.wsWf.onopen = () => {
         this.wsWf.send('SET auth t=kiwi p=#');
         this.wsWf.send(`SET ident_user=${encodeURIComponent(this.callsign || 'VizSDR_User')}`);
+        this.wsWf.send('SET maxdb=0 mindb=-100');
         this.wsWf.send('SET wf_speed=2');
         this.wsWf.send('SET interp=13');
         this.wsWf.send('SET wf_comp=0');
@@ -1297,7 +1243,7 @@ class KiwiSDREngine {
   }
 }
 
-/* ================= LOGIQUE INTERFACE VIZSDR v0.3.2 ================= */
+/* ================= LOGIQUE INTERFACE VIZSDR v0.4.0 ================= */
 const KIWI_FILTERS = {
   am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
   fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
@@ -1335,7 +1281,7 @@ const I18N = {
     enterFreq: 'Fréquence (kHz)',
     saveBeacon: 'Balise',
     beaconsTitle: 'Balises & Fréquences sauvegardées',
-    settingsTitle: 'Paramètres VizSDR v0.3.2',
+    settingsTitle: 'Paramètres VizSDR v0.4.0',
     connSection: 'Connexion KiwiSDR',
     disconnect: 'Déconnecter',
     connect: 'Connecter',
@@ -1358,7 +1304,7 @@ const I18N = {
     enterFreq: 'Frequency (kHz)',
     saveBeacon: 'Beacon',
     beaconsTitle: 'Beacons & Saved Frequencies',
-    settingsTitle: 'VizSDR v0.3.2 Settings',
+    settingsTitle: 'VizSDR v0.4.0 Settings',
     connSection: 'KiwiSDR Connection',
     disconnect: 'Disconnect',
     connect: 'Connect',
@@ -1372,23 +1318,31 @@ const I18N = {
   }
 };
 
-// Canvas Waterfall
+// Canvas Waterfall ultra-fluide (décalage matériel 1 ligne/trame)
 const wfWrap = document.getElementById('waterfall-wrap');
 const wfCanvas = document.getElementById('wf-canvas');
 const wfCtx = wfCanvas.getContext('2d', { alpha: false });
 const wfDiagBadge = document.getElementById('wf-diag-badge');
-let wfHistory = [];
 let wfLineCount = 0;
+let lastBins = null;
 
 function resizeCanvas() {
   const rect = wfWrap.getBoundingClientRect();
   const w = Math.max(300, Math.floor(rect.width || window.innerWidth));
   const h = Math.max(140, Math.floor(rect.height || (window.innerHeight * 0.66)));
   if (wfCanvas.width !== w || wfCanvas.height !== h) {
+    const temp = document.createElement('canvas');
+    temp.width = wfCanvas.width || w;
+    temp.height = wfCanvas.height || h;
+    temp.getContext('2d').drawImage(wfCanvas, 0, 0);
+
     wfCanvas.width = w;
     wfCanvas.height = h;
+    wfCtx.fillStyle = '#05070a';
+    wfCtx.fillRect(0, 0, w, h);
+    wfCtx.drawImage(temp, 0, 0, w, h);
   }
-  redrawWaterfall();
+  renderBeaconTags();
 }
 window.addEventListener('resize', resizeCanvas);
 if (window.ResizeObserver) {
@@ -1426,57 +1380,32 @@ let currentLUT = getColorLUT('kiwi');
 
 function pushWaterfallRow(bins) {
   if (wfCanvas.width < 10 || wfCanvas.height < 10) resizeCanvas();
-  wfLineCount++;
-  wfDiagBadge.textContent = `WF: ${wfLineCount} lignes (${bins.length} bins)`;
-  wfHistory.unshift({ bins: new Uint8Array(bins), centerKhz: state.freqKhz, zoom: state.zoom });
-  if (wfHistory.length > wfCanvas.height) wfHistory.length = wfCanvas.height;
-  redrawWaterfall();
-}
-
-function redrawWaterfall() {
   const w = wfCanvas.width;
   const h = wfCanvas.height;
-  if (w <= 0 || h <= 0) return;
 
-  const img = wfCtx.createImageData(w, h);
-  const data = img.data;
-  const spanTotal = Math.max(1, state.maxFreqKhz - state.minFreqKhz);
-  const curSpan = spanTotal / Math.pow(2, state.zoom);
-  const curLeft = state.freqKhz - curSpan / 2;
+  wfLineCount++;
+  lastBins = bins;
+  wfDiagBadge.textContent = `WF: ${wfLineCount} lignes`;
 
-  for (let y = 0; y < h; y++) {
-    if (y >= wfHistory.length) {
-      for (let x = 0; x < w; x++) {
-        const pIdx = (y * w + x) * 4;
-        data[pIdx] = 5; data[pIdx + 1] = 7; data[pIdx + 2] = 10; data[pIdx + 3] = 255;
-      }
-      continue;
-    }
+  // Décale l'image existante vers le bas d'un pixel (accélération GPU)
+  wfCtx.drawImage(wfCanvas, 0, 0, w, h - 1, 0, 1, w, h - 1);
 
-    const row = wfHistory[y];
-    const rowSpan = spanTotal / Math.pow(2, row.zoom);
-    const rowLeft = row.centerKhz - rowSpan / 2;
-    const bins = row.bins;
+  // Dessine uniquement la nouvelle ligne supérieure (1px)
+  const rowImg = wfCtx.createImageData(w, 1);
+  const data = rowImg.data;
+  const denom = Math.max(1, state.wfMax - state.wfMin);
 
-    for (let x = 0; x < w; x++) {
-      const freqAtX = curLeft + (x / w) * curSpan;
-      const norm = (freqAtX - rowLeft) / rowSpan;
-      const pIdx = (y * w + x) * 4;
-      if (norm < 0 || norm >= 1) {
-        data[pIdx] = 5; data[pIdx + 1] = 7; data[pIdx + 2] = 10; data[pIdx + 3] = 255;
-      } else {
-        const bIdx = Math.floor(norm * bins.length);
-        const dbm = bins[bIdx] - 255;
-        const scaled = Math.max(0, Math.min(255, Math.round(((dbm - state.wfMin) / Math.max(1, state.wfMax - state.wfMin)) * 255)));
-        data[pIdx] = currentLUT[scaled * 3];
-        data[pIdx + 1] = currentLUT[scaled * 3 + 1];
-        data[pIdx + 2] = currentLUT[scaled * 3 + 2];
-        data[pIdx + 3] = 255;
-      }
-    }
+  for (let x = 0; x < w; x++) {
+    const bIdx = Math.min(bins.length - 1, Math.floor((x / w) * bins.length));
+    const dbm = bins[bIdx] - 255;
+    const scaled = Math.max(0, Math.min(255, Math.round(((dbm - state.wfMin) / denom) * 255)));
+    const p = x * 4;
+    data[p] = currentLUT[scaled * 3];
+    data[p + 1] = currentLUT[scaled * 3 + 1];
+    data[p + 2] = currentLUT[scaled * 3 + 2];
+    data[p + 3] = 255;
   }
-  wfCtx.putImageData(img, 0, 0);
-  renderBeaconTags();
+  wfCtx.putImageData(rowImg, 0, 0);
 }
 
 // Instance Moteur KiwiSDR
@@ -1527,7 +1456,7 @@ function setFrequency(newFreq) {
   const [low, high] = state.customFilters[state.mode][state.widthState];
   engine.setTune(state.freqKhz, state.mode, low, high);
   updatePassbandCursor();
-  redrawWaterfall();
+  renderBeaconTags();
 }
 
 function updateModeUI() {
@@ -1582,10 +1511,9 @@ function updateZoomUI() {
     : `${curSpanKhz.toFixed(1)} kHz`;
   engine.setZoom(state.zoom);
   updatePassbandCursor();
-  redrawWaterfall();
+  renderBeaconTags();
 }
 
-// Boutons Modes
 document.querySelectorAll('.mode-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     const m = btn.dataset.mode;
@@ -1599,7 +1527,6 @@ document.querySelectorAll('.mode-btn').forEach((btn) => {
   });
 });
 
-// Zoom + / -
 document.getElementById('btn-zoom-in').addEventListener('click', () => {
   if (state.zoom < 14) { state.zoom++; updateZoomUI(); }
 });
@@ -1607,7 +1534,6 @@ document.getElementById('btn-zoom-out').addEventListener('click', () => {
   if (state.zoom > 0) { state.zoom--; updateZoomUI(); }
 });
 
-// Glissement tactile sur le Waterfall
 let isDraggingWf = false;
 let dragStartX = 0;
 let dragStartFreq = 0;
@@ -1628,7 +1554,6 @@ wfCanvas.addEventListener('pointermove', (e) => {
 });
 wfCanvas.addEventListener('pointerup', () => { isDraggingWf = false; });
 
-// Poignées de redimensionnement déportées à droite en rouge
 function bindResizeHandle(handleId, cssVar, isTop) {
   const el = document.getElementById(handleId);
   let dragging = false;
@@ -1650,7 +1575,6 @@ function bindResizeHandle(handleId, cssVar, isTop) {
 bindResizeHandle('handle-top', '--top-h', true);
 bindResizeHandle('handle-bot', '--bot-h', false);
 
-// Modales & Navigation
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeAllModals() { document.querySelectorAll('.modal-backdrop').forEach((m) => m.classList.remove('open')); }
 document.querySelectorAll('.close-modal').forEach((b) => b.addEventListener('click', closeAllModals));
@@ -1665,7 +1589,6 @@ document.getElementById('btn-apply-freq').addEventListener('click', () => {
   closeAllModals();
 });
 
-// Custom Narrow / Wide
 document.getElementById('custom-filter-btn').addEventListener('click', () => {
   const [low, high] = state.customFilters[state.mode][state.widthState];
   document.getElementById('filter-modal-title').textContent = `${state.mode.toUpperCase()} (${state.widthState.toUpperCase()})`;
@@ -1690,7 +1613,6 @@ document.getElementById('btn-reset-filter').addEventListener('click', () => {
   closeAllModals();
 });
 
-// Balises (Bookmarks)
 function renderBeaconTags() {
   const overlay = document.getElementById('beacon-overlay');
   overlay.innerHTML = '';
@@ -1771,7 +1693,6 @@ document.getElementById('btn-save-beacon-quick').addEventListener('click', () =>
   closeAllModals();
 });
 
-// Enregistrement Audio (WAV 16-bit & WebM) + Pont Android
 let mediaRecorder = null;
 let webmChunks = [];
 let recSeconds = 0;
@@ -1862,7 +1783,6 @@ document.getElementById('btn-rec').addEventListener('click', () => {
   }
 });
 
-// Contrôles Audio
 document.getElementById('btn-mute').addEventListener('click', (e) => {
   engine.initAudio();
   engine.muted = !engine.muted;
@@ -1881,21 +1801,16 @@ document.getElementById('btn-agc').addEventListener('click', (e) => {
   engine.sendAGC();
 });
 
-// Paramètres & Connexion
 document.getElementById('btn-settings').addEventListener('click', () => { renderDirectory(); openModal('settings-modal'); });
 document.getElementById('btn-quick-custom').addEventListener('click', () => { openModal('settings-modal'); document.getElementById('custom-host-input').focus(); });
 
 function connectToHost(host) {
   if (!host) return;
-  wfHistory = [];
   wfLineCount = 0;
-  wfDiagBadge.textContent = 'WF: attente trames...';
+  wfCtx.fillStyle = '#05070a';
+  wfCtx.fillRect(0, 0, wfCanvas.width, wfCanvas.height);
+  wfDiagBadge.textContent = 'WF: connexion...';
   engine.callsign = document.getElementById('callsign-input').value.trim() || 'VizSDR_User';
-  if (!state.recentHosts.includes(host)) {
-    state.recentHosts.unshift(host);
-    state.recentHosts = state.recentHosts.slice(0, 5);
-    localStorage.setItem('viz_hosts', JSON.stringify(state.recentHosts));
-  }
   closeAllModals();
   engine.connect(host);
 }
@@ -1909,7 +1824,6 @@ document.querySelectorAll('.rec-host-btn').forEach((btn) => {
   btn.addEventListener('click', () => connectToHost(btn.dataset.host));
 });
 
-// Carte KiwiSDR intégrée + Bouton Valider
 function openKiwiMap() {
   closeAllModals();
   const frame = document.getElementById('kiwimap-frame');
@@ -1922,32 +1836,27 @@ document.getElementById('btn-validate-map').addEventListener('click', () => {
   connectToHost(document.getElementById('map-quick-host').value);
 });
 
-// Waterfall Settings
 document.getElementById('wf-colormap').addEventListener('change', (e) => {
   state.colormap = e.target.value;
   currentLUT = getColorLUT(state.colormap);
-  redrawWaterfall();
 });
-document.getElementById('wf-min').addEventListener('change', (e) => { state.wfMin = parseInt(e.target.value, 10) || -135; redrawWaterfall(); });
-document.getElementById('wf-max').addEventListener('change', (e) => { state.wfMax = parseInt(e.target.value, 10) || -45; redrawWaterfall(); });
+document.getElementById('wf-min').addEventListener('change', (e) => { state.wfMin = parseInt(e.target.value, 10) || -135; });
+document.getElementById('wf-max').addEventListener('change', (e) => { state.wfMax = parseInt(e.target.value, 10) || -45; });
 document.getElementById('wf-speed').addEventListener('change', (e) => engine.setWaterfallSpeed(parseInt(e.target.value, 10)));
 document.getElementById('btn-wf-autoscale').addEventListener('click', () => {
-  if (wfHistory.length > 0) {
-    const latest = wfHistory[0].bins;
+  if (lastBins && lastBins.length > 0) {
     let min = 255, max = 0;
-    for (let i = 0; i < latest.length; i++) {
-      if (latest[i] < min) min = latest[i];
-      if (latest[i] > max) max = latest[i];
+    for (let i = 0; i < lastBins.length; i++) {
+      if (lastBins[i] < min) min = lastBins[i];
+      if (lastBins[i] > max) max = lastBins[i];
     }
     state.wfMin = (min - 255) - 5;
     state.wfMax = (max - 255) + 5;
     document.getElementById('wf-min').value = state.wfMin;
     document.getElementById('wf-max').value = state.wfMax;
-    redrawWaterfall();
   }
 });
 
-// Répertoire HF
 function renderDirectory() {
   const list = document.getElementById('dir-list');
   list.innerHTML = '';
@@ -1979,7 +1888,6 @@ document.getElementById('btn-add-dir').addEventListener('click', () => {
   }
 });
 
-// Langue & Easter Egg
 let eggClicks = { fr: 0, en: 0 };
 let eggTimers = { fr: null, en: null };
 
@@ -2019,7 +1927,6 @@ window.onAndroidKiwiSelected = function(hostUrl) {
   connectToHost(hostUrl);
 };
 
-// Initialisation
 applyLanguage(state.lang);
 resizeCanvas();
 updateModeUI();
