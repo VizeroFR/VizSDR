@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>VizSDR v0.4.9</title>
+  <title>VizSDR v0.5.0</title>
   <style>
     :root {
       --bg-dark: #0b0e14;
@@ -654,7 +654,7 @@
     <div class="top-left">
       <div class="brand-row">
         <span class="brand-title">VizSDR</span>
-        <span class="version-badge">v0.4.9</span>
+        <span class="version-badge">v0.5.0</span>
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text" data-i18n="disconnected">Déconnecté</span>
       </div>
@@ -808,7 +808,7 @@
 <div id="settings-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.9</span></h2>
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.5.0</span></h2>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
@@ -861,7 +861,7 @@
         <div class="form-row">
           <span>WF Min / Max (dB)</span>
           <div style="display:flex; gap:5px; align-items:center;">
-            <input id="wf-min" type="number" value="-130" style="width:64px;" />
+            <input id="wf-min" type="number" value="-118" style="width:64px;" />
             <input id="wf-max" type="number" value="-55" style="width:64px;" />
             <button id="btn-wf-autoscale" class="btn-secondary">Auto</button>
           </div>
@@ -914,7 +914,7 @@
 </div>
 
 <script>
-/* ================= MOTEUR KIWISDR v0.4.9 ================= */
+/* ================= MOTEUR KIWISDR v0.5.0 ================= */
 class KiwiSDREngine {
   constructor(callbacks = {}) {
     this.onWaterfallLine = callbacks.onWaterfallLine || (() => {});
@@ -1277,7 +1277,6 @@ class KiwiSDREngine {
     }
 
     // 2. Trame compressée IMA-ADPCM par ligne (533 octets = 21 en-tête + 512 octets ADPCM)
-    // Chaque ligne FFT KiwiSDR réinitialise predictor=0 et stepIndex=0
     if (buffer.byteLength >= 533) {
       let predictor = 0;
       let stepIndex = 0;
@@ -1304,22 +1303,20 @@ class KiwiSDREngine {
         }
       }
 
-      // Calibrage réaliste : le plancher de bruit (minV) reste bleu sombre (~125 = -130 dBm)
-      // et seuls les vrais pics spectraux montent vers cyan / jaune / rouge
+      // Courbe gamma 2.6 : garde 80% du plancher de bruit en bleu nuit et détache les porteuses en jaune/rouge
       const out = new Uint8Array(1024);
       const span = Math.max(1, maxV - minV);
       for (let k = 0; k < 1024; k++) {
-        const norm = (rawVals[k] - minV) / span; // 0.0 (bruit) -> 1.0 (pic fort)
-        // Courbe gamma légère (pow 1.6) pour garder le fond bleu et faire ressortir les porteuses
-        const shaped = Math.pow(norm, 1.6);
-        out[k] = Math.round(125 + shaped * 75); // -130 dBm à -55 dBm
+        const norm = (rawVals[k] - minV) / span;
+        const shaped = Math.pow(norm, 2.6);
+        out[k] = Math.round(125 + shaped * 75);
       }
       this.onWaterfallLine(out, buffer.byteLength);
     }
   }
 }
 
-/* ================= LOGIQUE INTERFACE VIZSDR v0.4.9 ================= */
+/* ================= LOGIQUE INTERFACE VIZSDR v0.5.0 ================= */
 const KIWI_FILTERS = {
   am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
   fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
@@ -1337,9 +1334,9 @@ const state = {
   widthState: 'normal',
   customFilters: JSON.parse(localStorage.getItem('viz_filters') || 'null') || JSON.parse(JSON.stringify(KIWI_FILTERS)),
   zoom: 7,
-  wfMin: -130,
-  wfMax: -55,
-  colormap: 'kiwi',
+  wfMin: parseInt(localStorage.getItem('viz_wf_min') || '-118', 10),
+  wfMax: parseInt(localStorage.getItem('viz_wf_max') || '-55', 10),
+  colormap: localStorage.getItem('viz_colormap') || 'kiwi',
   beacons: JSON.parse(localStorage.getItem('viz_beacons') || '[{"name":"UVB-76","freq":4625,"mode":"usb","width":"normal"}]'),
   directory: JSON.parse(localStorage.getItem('viz_dir') || '[{"name":"Priyom.org","url":"https://priyom.org"},{"name":"SigIDWiki","url":"https://www.sigidwiki.com"},{"name":"Short-Wave.info","url":"https://www.short-wave.info"},{"name":"KiwiSDR Map","url":"http://rx.linkfanel.net"}]')
 };
@@ -1356,7 +1353,7 @@ const I18N = {
     enterFreq: 'Fréquence (kHz)',
     saveBeacon: 'Balise',
     beaconsTitle: 'Balises & Fréquences sauvegardées',
-    settingsTitle: 'Paramètres VizSDR v0.4.9',
+    settingsTitle: 'Paramètres VizSDR v0.5.0',
     connSection: 'Connexion KiwiSDR',
     disconnect: 'Déconnecter',
     connect: 'Connecter',
@@ -1379,7 +1376,7 @@ const I18N = {
     enterFreq: 'Frequency (kHz)',
     saveBeacon: 'Beacon',
     beaconsTitle: 'Beacons & Saved Frequencies',
-    settingsTitle: 'VizSDR v0.4.9 Settings',
+    settingsTitle: 'VizSDR v0.5.0 Settings',
     connSection: 'KiwiSDR Connection',
     disconnect: 'Disconnect',
     connect: 'Connect',
@@ -1435,7 +1432,6 @@ if (window.ResizeObserver) {
   new ResizeObserver(() => ensureCanvasReady(false)).observe(wfWrap);
 }
 
-// Décale horizontalement l'historique waterfall existant lors d'un glissement de fréquence
 function shiftWaterfallHistory(deltaKhz) {
   if (!wfImgData || !deltaKhz) return;
   const spanTotal = Math.max(1, state.maxFreqKhz - state.minFreqKhz);
@@ -1452,7 +1448,6 @@ function shiftWaterfallHistory(deltaKhz) {
       data[i] = 5; data[i + 1] = 7; data[i + 2] = 10; data[i + 3] = 255;
     }
   } else if (shiftBins > 0) {
-    // Fréquence augmente -> le spectre glisse vers la gauche
     const byteShift = shiftBins * 4;
     for (let y = 0; y < h; y++) {
       const rowStart = y * rowBytes;
@@ -1463,7 +1458,6 @@ function shiftWaterfallHistory(deltaKhz) {
       }
     }
   } else {
-    // Fréquence diminue -> le spectre glisse vers la droite
     const absBins = -shiftBins;
     const byteShift = absBins * 4;
     for (let y = 0; y < h; y++) {
@@ -1494,10 +1488,28 @@ function getColorLUT(name) {
       g = Math.round(255 * Math.max(0, 2 * t - 0.6));
       b = Math.round(255 * Math.sin(t * Math.PI));
     } else {
-      if (t < 0.35) { const k = t / 0.35; b = Math.round(20 + k * 155); }
-      else if (t < 0.65) { const k = (t - 0.35) / 0.3; g = Math.round(k * 230); b = Math.round(175 + k * 80); }
-      else if (t < 0.85) { const k = (t - 0.65) / 0.2; r = Math.round(k * 255); g = 230 + Math.round(k * 25); b = Math.round(255 * (1 - k)); }
-      else { const k = (t - 0.85) / 0.15; r = 255; g = Math.round(255 * (1 - k * 0.85)); b = Math.round(k * 160); }
+      // Palette KiwiSDR authentique : bleu nuit profond -> bleu roi -> cyan -> jaune -> rouge
+      if (t < 0.45) {
+        const k = t / 0.45;
+        r = Math.round(k * 8);
+        g = Math.round(k * 38);
+        b = Math.round(28 + k * 145);
+      } else if (t < 0.70) {
+        const k = (t - 0.45) / 0.25;
+        r = Math.round(8 + k * 20);
+        g = Math.round(38 + k * 195);
+        b = Math.round(173 + k * 82);
+      } else if (t < 0.88) {
+        const k = (t - 0.70) / 0.18;
+        r = Math.round(28 + k * 227);
+        g = 233 + Math.round(k * 22);
+        b = Math.round(255 * (1 - k));
+      } else {
+        const k = (t - 0.88) / 0.12;
+        r = 255;
+        g = Math.round(255 * (1 - k * 0.88));
+        b = Math.round(k * 120);
+      }
     }
     lut[i * 3] = r;
     lut[i * 3 + 1] = g;
@@ -1505,7 +1517,7 @@ function getColorLUT(name) {
   }
   return lut;
 }
-let currentLUT = getColorLUT('kiwi');
+let currentLUT = getColorLUT(state.colormap);
 
 function runAutoScale(bins) {
   if (!bins || bins.length === 0) return false;
@@ -1515,8 +1527,10 @@ function runAutoScale(bins) {
     if (bins[i] > max) max = bins[i];
   }
   if (max <= min) return false;
-  state.wfMin = (min - 255) - 2;
-  state.wfMax = (max - 255) + 4;
+  state.wfMin = (min - 255) + 4;
+  state.wfMax = (max - 255) + 2;
+  localStorage.setItem('viz_wf_min', String(state.wfMin));
+  localStorage.setItem('viz_wf_max', String(state.wfMax));
   document.getElementById('wf-min').value = state.wfMin;
   document.getElementById('wf-max').value = state.wfMax;
   return true;
@@ -1546,7 +1560,6 @@ function pushWaterfallRow(bins, rawBytes) {
     data[p + 3] = 255;
   }
   wfCtx.putImageData(wfImgData, 0, 0);
-  // Force Android WebView à peindre immédiatement la nouvelle frame
   wfCanvas.style.opacity = '0.999';
   requestAnimationFrame(() => { wfCanvas.style.opacity = '1'; });
 }
@@ -2004,12 +2017,26 @@ document.getElementById('btn-validate-map').addEventListener('click', () => {
   connectToHost(document.getElementById('map-quick-host').value);
 });
 
-document.getElementById('wf-colormap').addEventListener('change', (e) => {
+const wfColormapEl = document.getElementById('wf-colormap');
+const wfMinEl = document.getElementById('wf-min');
+const wfMaxEl = document.getElementById('wf-max');
+wfColormapEl.value = state.colormap;
+wfMinEl.value = state.wfMin;
+wfMaxEl.value = state.wfMax;
+
+wfColormapEl.addEventListener('change', (e) => {
   state.colormap = e.target.value;
+  localStorage.setItem('viz_colormap', state.colormap);
   currentLUT = getColorLUT(state.colormap);
 });
-document.getElementById('wf-min').addEventListener('change', (e) => { state.wfMin = parseInt(e.target.value, 10) || -130; });
-document.getElementById('wf-max').addEventListener('change', (e) => { state.wfMax = parseInt(e.target.value, 10) || -55; });
+wfMinEl.addEventListener('change', (e) => {
+  state.wfMin = parseInt(e.target.value, 10) || -118;
+  localStorage.setItem('viz_wf_min', String(state.wfMin));
+});
+wfMaxEl.addEventListener('change', (e) => {
+  state.wfMax = parseInt(e.target.value, 10) || -55;
+  localStorage.setItem('viz_wf_max', String(state.wfMax));
+});
 document.getElementById('wf-speed').addEventListener('change', (e) => engine.setWaterfallSpeed(parseInt(e.target.value, 10)));
 document.getElementById('btn-wf-autoscale').addEventListener('click', (e) => {
   const ok = runAutoScale(lastBins);
