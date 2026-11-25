@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>VizSDR v0.5.4</title>
+  <title>VizSDR v0.5.5</title>
   <style>
     :root {
       --bg-dark: #0b0e14;
@@ -216,6 +216,32 @@
       image-rendering: auto;
     }
 
+    /* Échelle graduée kHz façon Twente / KiwiSDR */
+    #freq-ruler {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 18px;
+      background: rgba(11, 14, 20, 0.72);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+      pointer-events: none;
+      z-index: 11;
+      font-size: 9px;
+      font-weight: 700;
+      color: #94a3b8;
+      font-variant-numeric: tabular-nums;
+    }
+    .ruler-tick {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      border-left: 1px solid rgba(148, 163, 184, 0.35);
+      padding-left: 3px;
+      line-height: 17px;
+      white-space: nowrap;
+    }
+
     #wf-diag-stack {
       position: absolute;
       bottom: 6px;
@@ -242,7 +268,7 @@
 
     #band-guard-toast {
       position: absolute;
-      top: 34px;
+      top: 44px;
       left: 50%;
       transform: translateX(-50%);
       background: rgba(59, 130, 246, 0.9);
@@ -261,7 +287,7 @@
 
     #tune-cursor {
       position: absolute;
-      top: 0;
+      top: 18px;
       bottom: 0;
       left: 50%;
       transform: translateX(-50%);
@@ -273,9 +299,9 @@
     }
     #passband-shade {
       height: 100%;
-      background: rgba(59, 130, 246, 0.16);
-      border-left: 1px dashed rgba(96, 165, 250, 0.55);
-      border-right: 1px dashed rgba(96, 165, 250, 0.55);
+      background: rgba(59, 130, 246, 0.18);
+      border-left: 1px dashed rgba(96, 165, 250, 0.65);
+      border-right: 1px dashed rgba(96, 165, 250, 0.65);
       position: relative;
     }
     #carrier-line {
@@ -289,7 +315,7 @@
 
     #beacon-overlay {
       position: absolute;
-      top: 6px;
+      top: 21px;
       left: 0;
       right: 0;
       height: 22px;
@@ -332,7 +358,7 @@
       background: #fff;
       border-radius: 2px;
     }
-    #handle-top { top: 4px; }
+    #handle-top { top: 22px; }
     #handle-bot { bottom: 4px; }
 
     #offline-popup {
@@ -382,9 +408,23 @@
       height: 28px;
       display: flex;
       align-items: center;
-      justify-content: flex-end;
+      justify-content: space-between;
       width: 100%;
     }
+
+    #btn-center-wf {
+      height: 26px;
+      padding: 0 8px;
+      border-radius: 6px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #93c5fd;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      z-index: 2;
+    }
+    #btn-center-wf:active { background: var(--accent-blue); color: #fff; }
 
     .zoom-center-group {
       position: absolute;
@@ -657,7 +697,7 @@
     <div class="top-left">
       <div class="brand-row">
         <span class="brand-title">VizSDR</span>
-        <span class="version-badge">v0.5.4</span>
+        <span class="version-badge">v0.5.5</span>
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text" data-i18n="disconnected">Déconnecté</span>
       </div>
@@ -685,6 +725,8 @@
 
   <main id="waterfall-wrap">
     <canvas id="wf-canvas"></canvas>
+    <div id="freq-ruler"></div>
+
     <div id="wf-diag-stack">
       <div id="wf-data-badge" class="wf-badge">WF: 0 lignes (0o)</div>
       <div id="wf-msg-badge" class="wf-badge">MSG: en attente</div>
@@ -722,6 +764,7 @@
 
   <footer id="bottom-bar">
     <div class="bot-row-top">
+      <button id="btn-center-wf" title="Centrer la vue sur la fréquence">⌖ Centrer</button>
       <div class="zoom-center-group">
         <button id="btn-zoom-out" class="zoom-btn">−</button>
         <span id="span-label">234.4 kHz</span>
@@ -811,7 +854,7 @@
 <div id="settings-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.5.4</span></h2>
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.5.5</span></h2>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
@@ -917,7 +960,7 @@
 </div>
 
 <script>
-/* ================= MOTEUR KIWISDR v0.5.4 ================= */
+/* ================= MOTEUR KIWISDR v0.5.5 ================= */
 class KiwiSDREngine {
   constructor(callbacks = {}) {
     this.onWaterfallLine = callbacks.onWaterfallLine || (() => {});
@@ -936,6 +979,7 @@ class KiwiSDREngine {
     this.minFreqKhz = 0;
     this.maxFreqKhz = 30000;
     this.freqKhz = 4625.0;
+    this.wfCenterKhz = 4625.0;
     this.mode = 'usb';
     this.lowCut = 300;
     this.highCut = 2700;
@@ -1072,7 +1116,6 @@ class KiwiSDREngine {
         this.wsWf.send('SET maxdb=0 mindb=-100');
         this.wsWf.send(`SET wf_speed=${this.wfSpeed}`);
         this.wsWf.send('SET interp=13');
-        // wf_comp=0 : force les trames 1040o non compressées identiques à tous les niveaux de zoom
         this.wsWf.send('SET wf_comp=0');
         this.wsWf.send('SET send_db=1');
         this.sendZoom();
@@ -1133,7 +1176,8 @@ class KiwiSDREngine {
     this.onStatusChange('disconnected', '');
   }
 
-  setTune(freqKhz, mode, lowCut, highCut, immediate = false) {
+  // Envoie UNIQUEMENT l'accord audio (SET mod/freq), sans décaler la fenêtre waterfall !
+  setAudioTune(freqKhz, mode, lowCut, highCut, immediate = false) {
     this.freqKhz = Math.max(this.minFreqKhz, Math.min(this.maxFreqKhz, freqKhz));
     this.mode = mode;
     this.lowCut = lowCut;
@@ -1141,22 +1185,19 @@ class KiwiSDREngine {
 
     if (immediate) {
       this.sendTune();
-      this.sendZoom();
       return;
     }
 
     const now = performance.now();
-    if (now - this.lastCmdTime >= 50) {
+    if (now - this.lastCmdTime >= 40) {
       this.lastCmdTime = now;
       this.sendTune();
-      this.sendZoom();
     } else if (!this.pendingCmdTimer) {
       this.pendingCmdTimer = setTimeout(() => {
         this.pendingCmdTimer = null;
         this.lastCmdTime = performance.now();
         this.sendTune();
-        this.sendZoom();
-      }, 50);
+      }, 40);
     }
   }
 
@@ -1167,21 +1208,31 @@ class KiwiSDREngine {
     this.wsSnd.send(`SET mod=${kiwiMode} low_cut=${Math.round(this.lowCut)} high_cut=${Math.round(this.highCut)} freq=${dialFreq.toFixed(3)}`);
   }
 
-  setZoom(zoomLevel) {
+  // Met à jour la fenêtre waterfall (zoom + centre) uniquement lors du zoom ou d'un recentrage
+  setWaterfallWindow(zoomLevel, centerKhz) {
     this.zoom = Math.max(0, Math.min(14, zoomLevel));
-    this.sendZoom();
+    this.wfCenterKhz = Math.max(this.minFreqKhz, Math.min(this.maxFreqKhz, centerKhz));
+    return this.sendZoom();
   }
 
   sendZoom() {
-    if (!this.wsWf || this.wsWf.readyState !== WebSocket.OPEN) return;
     const spanTotal = Math.max(1, this.maxFreqKhz - this.minFreqKhz);
     const spanKhz = spanTotal / Math.pow(2, this.zoom);
-    const relFreq = Math.max(0, this.freqKhz - this.minFreqKhz);
-    const startKhz = Math.max(0, Math.min(spanTotal - spanKhz, relFreq - spanKhz / 2));
-    const stepBin = Math.max(1, Math.round(1048576 / (1024 * Math.pow(2, this.zoom))));
-    const rawBin = Math.round((startKhz / spanTotal) * 1048576);
-    const startBin = Math.floor(rawBin / stepBin) * stepBin;
-    this.wsWf.send(`SET zoom=${this.zoom} start=${startBin}`);
+    const relCenter = Math.max(0, this.wfCenterKhz - this.minFreqKhz);
+    const desiredLeftKhz = Math.max(0, Math.min(spanTotal - spanKhz, relCenter - spanKhz / 2));
+
+    // Grille officielle KiwiSDR : bins FFT de 0 à 524288 (2^19) ou 1048576 (2^20) selon le serveur,
+    // avec start quantifié sur des multiples exacts de (1024 >> zoom) pour que le serveur n'arrondisse pas !
+    const totalBins = 1048576;
+    const stepBin = Math.max(1, Math.round(totalBins / (1024 * Math.pow(2, this.zoom))));
+    const rawBin = Math.round((desiredLeftKhz / spanTotal) * totalBins);
+    const exactStartBin = Math.floor(rawBin / stepBin) * stepBin;
+    const exactLeftKhz = this.minFreqKhz + (exactStartBin / totalBins) * spanTotal;
+
+    if (this.wsWf && this.wsWf.readyState === WebSocket.OPEN) {
+      this.wsWf.send(`SET zoom=${this.zoom} start=${exactStartBin}`);
+    }
+    return { leftKhz: exactLeftKhz, rightKhz: exactLeftKhz + spanKhz };
   }
 
   setWaterfallSpeed(speed) {
@@ -1300,18 +1351,12 @@ class KiwiSDREngine {
 
     if (b0 !== 0x57 || b1 !== 0x2F || b2 !== 0x46) return;
 
-    const serverXBin = view.getUint32(4, true);
-    const serverZoomRaw = view.getUint32(8, true) & 0x0F;
-    const meta = { serverXBin, serverZoom: serverZoomRaw };
-
-    // Format non compressé 1040 octets : 16 octets d'en-tête + 1024 octets uint8 (dBm + 255)
     if (buffer.byteLength >= 1040) {
       const bins = new Uint8Array(buffer, 16, 1024);
-      this.onWaterfallLine(bins, buffer.byteLength, meta);
+      this.onWaterfallLine(bins, buffer.byteLength);
       return;
     }
 
-    // Repli si un serveur force quand même la compression (533 octets)
     if (buffer.byteLength >= 533) {
       let predictor = view.getInt16(16, true);
       let stepIndex = Math.max(0, Math.min(88, view.getUint8(18)));
@@ -1334,12 +1379,12 @@ class KiwiSDREngine {
           out[idx++] = Math.max(0, Math.min(255, predictor & 0xFF));
         }
       }
-      this.onWaterfallLine(out, buffer.byteLength, meta);
+      this.onWaterfallLine(out, buffer.byteLength);
     }
   }
 }
 
-/* ================= LOGIQUE INTERFACE VIZSDR v0.5.4 ================= */
+/* ================= LOGIQUE INTERFACE VIZSDR v0.5.5 ================= */
 const KIWI_FILTERS = {
   am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
   fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
@@ -1357,9 +1402,9 @@ const state = {
   widthState: 'normal',
   customFilters: JSON.parse(localStorage.getItem('viz_filters') || 'null') || JSON.parse(JSON.stringify(KIWI_FILTERS)),
   zoom: 7,
+  // Bornes exactes de la fenêtre affichée (fixes pendant qu'on déplace le curseur !)
   wfLeftKhz: 4625.0 - 117.2,
   wfRightKhz: 4625.0 + 117.2,
-  hasServerBounds: false,
   wfMin: parseInt(localStorage.getItem('viz_wf_min') || '-118', 10),
   wfMax: parseInt(localStorage.getItem('viz_wf_max') || '-40', 10),
   wfSpeed: parseInt(localStorage.getItem('viz_wf_speed') || '4', 10),
@@ -1380,7 +1425,7 @@ const I18N = {
     enterFreq: 'Fréquence (kHz)',
     saveBeacon: 'Balise',
     beaconsTitle: 'Balises & Fréquences sauvegardées',
-    settingsTitle: 'Paramètres VizSDR v0.5.4',
+    settingsTitle: 'Paramètres VizSDR v0.5.5',
     connSection: 'Connexion KiwiSDR',
     disconnect: 'Déconnecter',
     connect: 'Connecter',
@@ -1403,7 +1448,7 @@ const I18N = {
     enterFreq: 'Frequency (kHz)',
     saveBeacon: 'Beacon',
     beaconsTitle: 'Beacons & Saved Frequencies',
-    settingsTitle: 'VizSDR v0.5.4 Settings',
+    settingsTitle: 'VizSDR v0.5.5 Settings',
     connSection: 'KiwiSDR Connection',
     disconnect: 'Disconnect',
     connect: 'Connect',
@@ -1426,31 +1471,21 @@ const freqDisplayEl = document.getElementById('freq-display');
 const cursorEl = document.getElementById('tune-cursor');
 const passbandEl = document.getElementById('passband-shade');
 const beaconOverlayEl = document.getElementById('beacon-overlay');
+const freqRulerEl = document.getElementById('freq-ruler');
 
 let wfLineCount = 0;
 let lastBins = null;
 let wfImgData = null;
 let smoothedBins = new Float32Array(1024);
 let hasSmoothedInit = false;
-let overlayRafPending = false;
+let cursorRafPending = false;
 
-function getDisplayBounds() {
-  if (state.hasServerBounds && state.wfRightKhz > state.wfLeftKhz) {
-    return { leftKhz: state.wfLeftKhz, rightKhz: state.wfRightKhz };
-  }
-  const spanTotal = Math.max(1, state.maxFreqKhz - state.minFreqKhz);
-  const curSpan = spanTotal / Math.pow(2, state.zoom);
-  const leftKhz = Math.max(state.minFreqKhz, Math.min(state.maxFreqKhz - curSpan, state.freqKhz - curSpan / 2));
-  return { leftKhz, rightKhz: leftKhz + curSpan };
-}
-
-function scheduleOverlayUpdate() {
-  if (overlayRafPending) return;
-  overlayRafPending = true;
+function scheduleCursorUpdate() {
+  if (cursorRafPending) return;
+  cursorRafPending = true;
   requestAnimationFrame(() => {
-    overlayRafPending = false;
+    cursorRafPending = false;
     updatePassbandCursor();
-    renderBeaconTags();
   });
 }
 
@@ -1479,73 +1514,13 @@ function ensureCanvasReady(clearToBlack = false) {
     }
     wfCtx.putImageData(wfImgData, 0, 0);
   }
-  scheduleOverlayUpdate();
+  updatePassbandCursor();
+  renderRulerAndBeacons();
 }
 
 window.addEventListener('resize', () => ensureCanvasReady(false));
 if (window.ResizeObserver) {
   new ResizeObserver(() => ensureCanvasReady(false)).observe(wfWrap);
-}
-
-function shiftWaterfallPixels(shiftBins) {
-  if (!wfImgData || shiftBins === 0) return;
-  const h = wfCanvas.height;
-  const data = wfImgData.data;
-  const rowBytes = 1024 * 4;
-
-  if (Math.abs(shiftBins) >= 1024) {
-    for (let i = 0; i < data.length; i += 4) {
-      data[i] = 5; data[i + 1] = 7; data[i + 2] = 10; data[i + 3] = 255;
-    }
-  } else if (shiftBins > 0) {
-    const byteShift = shiftBins * 4;
-    for (let y = 0; y < h; y++) {
-      const rowStart = y * rowBytes;
-      data.copyWithin(rowStart, rowStart + byteShift, rowStart + rowBytes);
-      for (let x = 1024 - shiftBins; x < 1024; x++) {
-        const p = rowStart + x * 4;
-        data[p] = 5; data[p + 1] = 7; data[p + 2] = 10; data[p + 3] = 255;
-      }
-    }
-  } else {
-    const absBins = -shiftBins;
-    const byteShift = absBins * 4;
-    for (let y = 0; y < h; y++) {
-      const rowStart = y * rowBytes;
-      data.copyWithin(rowStart + byteShift, rowStart, rowStart + rowBytes - byteShift);
-      for (let x = 0; x < absBins; x++) {
-        const p = rowStart + x * 4;
-        data[p] = 5; data[p + 1] = 7; data[p + 2] = 10; data[p + 3] = 255;
-      }
-    }
-  }
-  wfCtx.putImageData(wfImgData, 0, 0);
-}
-
-function scaleWaterfallHistory(oldZoom, newZoom) {
-  if (!wfImgData || oldZoom === newZoom) return;
-  const factor = Math.pow(2, newZoom - oldZoom);
-  const h = wfCanvas.height;
-  const src = new Uint8ClampedArray(wfImgData.data);
-  const dst = wfImgData.data;
-
-  for (let y = 0; y < h; y++) {
-    const rowOff = y * 1024 * 4;
-    for (let x = 0; x < 1024; x++) {
-      const srcX = Math.round(512 + (x - 512) / factor);
-      const p = rowOff + x * 4;
-      if (srcX >= 0 && srcX < 1024) {
-        const sp = rowOff + srcX * 4;
-        dst[p] = src[sp];
-        dst[p + 1] = src[sp + 1];
-        dst[p + 2] = src[sp + 2];
-        dst[p + 3] = 255;
-      } else {
-        dst[p] = 5; dst[p + 1] = 7; dst[p + 2] = 10; dst[p + 3] = 255;
-      }
-    }
-  }
-  wfCtx.putImageData(wfImgData, 0, 0);
 }
 
 function getColorLUT(name) {
@@ -1611,29 +1586,12 @@ function runAutoScale(bins) {
   return true;
 }
 
-function pushWaterfallRow(bins, rawBytes, meta) {
+function pushWaterfallRow(bins, rawBytes) {
   ensureCanvasReady(false);
   const h = wfCanvas.height;
   const data = wfImgData.data;
   const rowBytes = 1024 * 4;
   const rowThick = 2;
-
-  if (meta && typeof meta.serverXBin === 'number') {
-    const spanTotal = Math.max(1, state.maxFreqKhz - state.minFreqKhz);
-    const z = typeof meta.serverZoom === 'number' ? meta.serverZoom : state.zoom;
-    const spanKhz = spanTotal / Math.pow(2, z);
-    const newLeftKhz = state.minFreqKhz + (meta.serverXBin / 1048576) * spanTotal;
-    const newRightKhz = newLeftKhz + spanKhz;
-
-    if (state.hasServerBounds && Math.abs(newLeftKhz - state.wfLeftKhz) > 0.05) {
-      const shiftBins = Math.round(((newLeftKhz - state.wfLeftKhz) / spanKhz) * 1024);
-      if (shiftBins !== 0) shiftWaterfallPixels(shiftBins);
-    }
-    state.wfLeftKhz = newLeftKhz;
-    state.wfRightKhz = newRightKhz;
-    state.hasServerBounds = true;
-    scheduleOverlayUpdate();
-  }
 
   wfLineCount++;
   lastBins = bins;
@@ -1682,7 +1640,7 @@ function pushWaterfallRow(bins, rawBytes, meta) {
 }
 
 const engine = new KiwiSDREngine({
-  onWaterfallLine: (bins, rawBytes, meta) => pushWaterfallRow(bins, rawBytes, meta),
+  onWaterfallLine: (bins, rawBytes) => pushWaterfallRow(bins, rawBytes),
   onSMeter: (dbm) => {
     document.getElementById('dbm-val').textContent = `${dbm.toFixed(1)} dBm`;
     const pct = Math.max(0, Math.min(100, ((dbm + 140) / 110) * 100));
@@ -1729,26 +1687,45 @@ function showBandGuardToast(targetFreq) {
   guardToastTimer = setTimeout(() => el.classList.remove('show'), 1800);
 }
 
-function setFrequency(newFreq, allowGuard = false, immediate = false) {
+// Centre la fenêtre du waterfall autour de `centerKhz` et efface l'ancien historique décalé
+function recenterWaterfall(centerKhz) {
+  const bounds = engine.setWaterfallWindow(state.zoom, centerKhz);
+  state.wfLeftKhz = bounds.leftKhz;
+  state.wfRightKhz = bounds.rightKhz;
+  hasSmoothedInit = false;
+  ensureCanvasReady(true);
+  renderRulerAndBeacons();
+  updatePassbandCursor();
+}
+
+// Change la fréquence audio sans faire bouger le waterfall (sauf si on sort de la fenêtre visible)
+function setFrequency(newFreq, allowRecenter = false, immediate = false) {
   let target = newFreq;
-  if (allowGuard && (newFreq < state.minFreqKhz || newFreq > state.maxFreqKhz)) {
-    const safeDefault = 3000.0;
-    target = (safeDefault >= state.minFreqKhz && safeDefault <= state.maxFreqKhz)
-      ? safeDefault
-      : (state.minFreqKhz + state.maxFreqKhz) / 2;
-    showBandGuardToast(target);
-    isDraggingWf = false;
-  } else {
-    target = Math.max(state.minFreqKhz, Math.min(state.maxFreqKhz, newFreq));
+  if (newFreq < state.minFreqKhz || newFreq > state.maxFreqKhz) {
+    if (allowRecenter) {
+      const safeDefault = 3000.0;
+      target = (safeDefault >= state.minFreqKhz && safeDefault <= state.maxFreqKhz)
+        ? safeDefault
+        : (state.minFreqKhz + state.maxFreqKhz) / 2;
+      showBandGuardToast(target);
+      isDraggingWf = false;
+    } else {
+      target = Math.max(state.minFreqKhz, Math.min(state.maxFreqKhz, newFreq));
+    }
   }
 
   state.freqKhz = target;
-
   const formatted = state.freqKhz.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   freqDisplayEl.textContent = `${formatted} kHz`;
+
   const [low, high] = state.customFilters[state.mode][state.widthState];
-  engine.setTune(state.freqKhz, state.mode, low, high, immediate);
-  scheduleOverlayUpdate();
+  engine.setAudioTune(state.freqKhz, state.mode, low, high, immediate);
+
+  if (allowRecenter && (state.freqKhz < state.wfLeftKhz || state.freqKhz > state.wfRightKhz)) {
+    recenterWaterfall(state.freqKhz);
+  } else {
+    scheduleCursorUpdate();
+  }
 }
 
 function updateModeUI() {
@@ -1782,18 +1759,17 @@ function updateModeUI() {
   }
 
   const [low, high] = state.customFilters[state.mode][state.widthState];
-  engine.setTune(state.freqKhz, state.mode, low, high, true);
-  scheduleOverlayUpdate();
+  engine.setAudioTune(state.freqKhz, state.mode, low, high, true);
+  scheduleCursorUpdate();
 }
 
 function updatePassbandCursor() {
   const wrapW = wfWrap.getBoundingClientRect().width || window.innerWidth;
-  const { leftKhz, rightKhz } = getDisplayBounds();
-  const curSpanKhz = Math.max(0.001, rightKhz - leftKhz);
+  const curSpanKhz = Math.max(0.001, state.wfRightKhz - state.wfLeftKhz);
   const curSpanHz = curSpanKhz * 1000;
 
-  const pct = ((state.freqKhz - leftKhz) / curSpanKhz) * 100;
-  cursorEl.style.left = `${Math.max(-10, Math.min(110, pct))}%`;
+  const pct = ((state.freqKhz - state.wfLeftKhz) / curSpanKhz) * 100;
+  cursorEl.style.left = `${Math.max(-5, Math.min(105, pct))}%`;
 
   const [low, high] = state.customFilters[state.mode][state.widthState];
   const bwHz = Math.max(50, high - low);
@@ -1801,16 +1777,13 @@ function updatePassbandCursor() {
   passbandEl.style.width = `${widthPx}px`;
 }
 
-function updateZoomUI(prevZoom = state.zoom) {
-  scaleWaterfallHistory(prevZoom, state.zoom);
-  state.hasServerBounds = false;
+function updateZoomUI() {
   const spanTotal = Math.max(1, state.maxFreqKhz - state.minFreqKhz);
   const curSpanKhz = spanTotal / Math.pow(2, state.zoom);
   document.getElementById('span-label').textContent = curSpanKhz >= 1000
     ? `${(curSpanKhz / 1000).toFixed(2)} MHz`
     : `${curSpanKhz.toFixed(1)} kHz`;
-  engine.setZoom(state.zoom);
-  scheduleOverlayUpdate();
+  recenterWaterfall(state.freqKhz);
 }
 
 document.querySelectorAll('.mode-btn').forEach((btn) => {
@@ -1827,36 +1800,47 @@ document.querySelectorAll('.mode-btn').forEach((btn) => {
 });
 
 document.getElementById('btn-zoom-in').addEventListener('click', () => {
-  if (state.zoom < 14) { const prev = state.zoom; state.zoom++; updateZoomUI(prev); }
+  if (state.zoom < 14) { state.zoom++; updateZoomUI(); }
 });
 document.getElementById('btn-zoom-out').addEventListener('click', () => {
-  if (state.zoom > 0) { const prev = state.zoom; state.zoom--; updateZoomUI(prev); }
+  if (state.zoom > 0) { state.zoom--; updateZoomUI(); }
+});
+document.getElementById('btn-center-wf').addEventListener('click', () => {
+  recenterWaterfall(state.freqKhz);
 });
 
+// Interaction tactile façon WebSDR Twente :
+// - Toucher un point sur le waterfall cale immédiatement le curseur et le son sur cette fréquence
+// - Glisser le doigt déplace le curseur sur le spectre fixe (0 redraw du canvas = 60 FPS constants)
+// - Relâcher près d'un bord (< 8 %) recentre automatiquement la vue
 let isDraggingWf = false;
-let dragStartX = 0;
-let dragStartFreq = 0;
+
+function freqFromClientX(clientX) {
+  const rect = wfWrap.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
+  return state.wfLeftKhz + ratio * (state.wfRightKhz - state.wfLeftKhz);
+}
 
 wfCanvas.addEventListener('pointerdown', (e) => {
   isDraggingWf = true;
-  dragStartX = e.clientX;
-  dragStartFreq = state.freqKhz;
   wfCanvas.setPointerCapture(e.pointerId);
+  setFrequency(freqFromClientX(e.clientX), false, true);
 });
 wfCanvas.addEventListener('pointermove', (e) => {
   if (!isDraggingWf) return;
-  const dx = e.clientX - dragStartX;
-  const wrapW = wfWrap.getBoundingClientRect().width || window.innerWidth;
-  const { leftKhz, rightKhz } = getDisplayBounds();
-  const curSpan = Math.max(0.1, rightKhz - leftKhz);
-  // Glisser vers la droite déplace le curseur/spectre vers la droite (+kHz), vers la gauche (-kHz)
-  const deltaKhz = (dx / wrapW) * curSpan;
-  setFrequency(dragStartFreq + deltaKhz, true, false);
+  setFrequency(freqFromClientX(e.clientX), false, false);
 });
 wfCanvas.addEventListener('pointerup', () => {
   if (!isDraggingWf) return;
   isDraggingWf = false;
   setFrequency(state.freqKhz, false, true);
+
+  const curSpan = Math.max(0.001, state.wfRightKhz - state.wfLeftKhz);
+  const relPos = (state.freqKhz - state.wfLeftKhz) / curSpan;
+  if ((relPos < 0.08 && state.wfLeftKhz > state.minFreqKhz + 0.5) ||
+      (relPos > 0.92 && state.wfRightKhz < state.maxFreqKhz - 0.5)) {
+    recenterWaterfall(state.freqKhz);
+  }
 });
 
 function bindResizeHandle(handleId, cssVar, isTop) {
@@ -1918,30 +1902,46 @@ document.getElementById('btn-reset-filter').addEventListener('click', () => {
   closeAllModals();
 });
 
-function renderBeaconTags() {
-  const { leftKhz, rightKhz } = getDisplayBounds();
+function renderRulerAndBeacons() {
+  const leftKhz = state.wfLeftKhz;
+  const rightKhz = state.wfRightKhz;
   const curSpan = Math.max(0.001, rightKhz - leftKhz);
-  const visible = state.beacons.filter((b) => b.freq >= leftKhz && b.freq <= rightKhz);
 
-  if (visible.length === 0) {
-    if (beaconOverlayEl.childElementCount > 0) beaconOverlayEl.innerHTML = '';
-    return;
+  // Règle graduée en haut du waterfall
+  freqRulerEl.innerHTML = '';
+  const rawStep = curSpan / 5;
+  const pow10 = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const norm = rawStep / pow10;
+  const niceStep = (norm < 1.5 ? 1 : (norm < 3.5 ? 2 : (norm < 7.5 ? 5 : 10))) * pow10;
+  const firstTick = Math.ceil(leftKhz / niceStep) * niceStep;
+
+  for (let f = firstTick; f < rightKhz; f += niceStep) {
+    const pct = ((f - leftKhz) / curSpan) * 100;
+    if (pct < 2 || pct > 94) continue;
+    const tick = document.createElement('div');
+    tick.className = 'ruler-tick';
+    tick.style.left = `${pct}%`;
+    tick.textContent = niceStep >= 1 ? `${Math.round(f)}` : `${f.toFixed(1)}`;
+    freqRulerEl.appendChild(tick);
   }
 
+  // Balises visibles
   beaconOverlayEl.innerHTML = '';
-  visible.forEach((b) => {
-    const pct = ((b.freq - leftKhz) / curSpan) * 100;
-    const tag = document.createElement('div');
-    tag.className = 'beacon-tag';
-    tag.style.left = `${pct}%`;
-    tag.textContent = `★ ${b.name}`;
-    tag.onclick = () => {
-      state.mode = b.mode || 'usb';
-      state.widthState = b.width || 'normal';
-      setFrequency(b.freq, true, true);
-      updateModeUI();
-    };
-    beaconOverlayEl.appendChild(tag);
+  state.beacons.forEach((b) => {
+    if (b.freq >= leftKhz && b.freq <= rightKhz) {
+      const pct = ((b.freq - leftKhz) / curSpan) * 100;
+      const tag = document.createElement('div');
+      tag.className = 'beacon-tag';
+      tag.style.left = `${pct}%`;
+      tag.textContent = `★ ${b.name}`;
+      tag.onclick = () => {
+        state.mode = b.mode || 'usb';
+        state.widthState = b.width || 'normal';
+        setFrequency(b.freq, true, true);
+        updateModeUI();
+      };
+      beaconOverlayEl.appendChild(tag);
+    }
   });
 }
 
@@ -1972,7 +1972,7 @@ function renderBeaconsList() {
       state.beacons.splice(idx, 1);
       localStorage.setItem('viz_beacons', JSON.stringify(state.beacons));
       renderBeaconsList();
-      renderBeaconTags();
+      renderRulerAndBeacons();
     };
     actions.append(goBtn, delBtn);
     row.appendChild(actions);
@@ -1987,14 +1987,14 @@ document.getElementById('btn-add-beacon').addEventListener('click', () => {
   localStorage.setItem('viz_beacons', JSON.stringify(state.beacons));
   document.getElementById('beacon-name-input').value = '';
   renderBeaconsList();
-  renderBeaconTags();
+  renderRulerAndBeacons();
 });
 document.getElementById('btn-save-beacon-quick').addEventListener('click', () => {
   const v = parseFloat(document.getElementById('freq-input').value);
   if (!isNaN(v)) {
     state.beacons.push({ name: `${v.toFixed(1)} kHz`, freq: v, mode: state.mode, width: state.widthState });
     localStorage.setItem('viz_beacons', JSON.stringify(state.beacons));
-    renderBeaconTags();
+    renderRulerAndBeacons();
   }
   closeAllModals();
 });
@@ -2114,8 +2114,7 @@ function connectToHost(host) {
   if (!host) return;
   wfLineCount = 0;
   hasSmoothedInit = false;
-  state.hasServerBounds = false;
-  ensureCanvasReady(true);
+  recenterWaterfall(state.freqKhz);
   wfDataBadge.textContent = 'WF: 0 lignes (0o)';
   wfMsgBadge.textContent = 'MSG: connexion...';
   engine.wfSpeed = state.wfSpeed;
@@ -2254,7 +2253,7 @@ applyLanguage(state.lang);
 ensureCanvasReady(true);
 updateModeUI();
 updateZoomUI();
-setFrequency(state.freqKhz, false, true);
+setFrequency(state.freqKhz, true, true);
 </script>
 </body>
 </html>
