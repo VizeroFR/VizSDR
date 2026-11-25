@@ -64,6 +64,12 @@ class MainActivity : AppCompatActivity() {
                 isUserGesture: Boolean,
                 resultMsg: Message?
             ): Boolean {
+                // Vérifie d'abord si le doigt était sur un lien (HitTestResult)
+                val href = view?.hitTestResult?.extra
+                if (!href.isNullOrBlank() && connectIfKiwiUrl(href)) {
+                    return false
+                }
+
                 val tempWebView = WebView(this@MainActivity)
                 tempWebView.webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(v: WebView?, req: WebResourceRequest?): Boolean {
@@ -97,13 +103,6 @@ class MainActivity : AppCompatActivity() {
                 super.onPageStarted(view, url, favicon)
                 if (url != null && connectIfKiwiUrl(url)) {
                     view?.stopLoading()
-                }
-            }
-
-            override fun onLoadResource(view: WebView?, url: String?) {
-                super.onLoadResource(view, url)
-                if (url != null && (url.contains("/kiwi/") || url.contains("kiwi.js") || url.contains("openwebrx.js"))) {
-                    connectIfKiwiUrl(url)
                 }
             }
         }
