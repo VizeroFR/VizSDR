@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>VizSDR v0.4.1</title>
+  <title>VizSDR v0.4.2</title>
   <style>
     :root {
       --bg-dark: #0b0e14;
@@ -627,7 +627,7 @@
     <div class="top-left">
       <div class="brand-row">
         <span class="brand-title">VizSDR</span>
-        <span class="version-badge">v0.4.1</span>
+        <span class="version-badge">v0.4.2</span>
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text" data-i18n="disconnected">Déconnecté</span>
       </div>
@@ -777,7 +777,7 @@
 <div id="settings-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.1</span></h2>
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.2</span></h2>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
@@ -883,7 +883,7 @@
 </div>
 
 <script>
-/* ================= MOTEUR KIWISDR v0.4.1 ================= */
+/* ================= MOTEUR KIWISDR v0.4.2 ================= */
 class KiwiSDREngine {
   constructor(callbacks = {}) {
     this.onWaterfallLine = callbacks.onWaterfallLine || (() => {});
@@ -948,7 +948,6 @@ class KiwiSDREngine {
         const baseRatio = 12000 / this.audioCtx.sampleRate;
         const squelchClosed = this.currentDbm < this.squelchDbm;
 
-        // Légère adaptation de vitesse pour maintenir ~3000 échantillons d'avance sans jamais couper
         let ratio = baseRatio;
         if (this.bufferedSamples > 6000) ratio = baseRatio * 1.015;
         else if (this.bufferedSamples < 1200) ratio = baseRatio * 0.985;
@@ -967,7 +966,6 @@ class KiwiSDREngine {
             if (this.readPtr >= this.ringBuffer.length) this.readPtr -= this.ringBuffer.length;
             this.bufferedSamples = Math.max(0, this.bufferedSamples - ratio);
           } else {
-            // Atténuation douce au lieu d'un clic sec à 0
             this.lastSample *= 0.95;
             out[i] = this.lastSample * this.volume;
           }
@@ -1030,20 +1028,33 @@ class KiwiSDREngine {
       this.wsWf.binaryType = 'arraybuffer';
 
       this.wsWf.onopen = () => {
+        wfDiagBadge.textContent = 'WF: socket ouvert...';
         this.wsWf.send('SET auth t=kiwi p=#');
         this.wsWf.send(`SET ident_user=${encodeURIComponent(this.callsign || 'VizSDR_User')}`);
         this.wsWf.send('SET maxdb=0 mindb=-100');
-        this.wsWf.send('SET wf_comp=0');
         this.wsWf.send('SET wf_speed=2');
         this.wsWf.send('SET interp=13');
+        this.wsWf.send('SET wf_comp=0');
         this.sendZoom();
         this.connected = true;
         this.onStatusChange('connected', clean);
       };
 
+      this.wsWf.onerror = () => {
+        wfDiagBadge.textContent = 'WF: erreur socket';
+      };
+
+      this.wsWf.onclose = (e) => {
+        wfDiagBadge.textContent = `WF: fermé (${e.code})`;
+      };
+
       this.wsWf.onmessage = (evt) => {
-        if (evt.data instanceof ArrayBuffer) this.handleWaterfallFrame(evt.data);
-        else if (typeof evt.data === 'string') this.handleControlMessage(evt.data);
+        if (evt.data instanceof ArrayBuffer) {
+          this.handleWaterfallFrame(evt.data);
+        } else if (typeof evt.data === 'string') {
+          wfDiagBadge.textContent = `WF MSG: ${evt.data.slice(0, 28)}`;
+          this.handleControlMessage(evt.data);
+        }
       };
 
       this.keepAliveTimer = setInterval(() => {
@@ -1171,7 +1182,6 @@ class KiwiSDREngine {
         }
       }
     } else {
-      // PCM 16-bit big-endian pur (lorsque SET compression=0 est actif)
       for (let i = offset; i + 1 < buffer.byteLength; i += 2) {
         this.pushSample(view.getInt16(i, false) / 32768.0);
       }
@@ -1196,14 +1206,14 @@ class KiwiSDREngine {
     if (buffer.byteLength < 20) return;
     if (view.getUint8(0) !== 0x57 || view.getUint8(1) !== 0x2F || view.getUint8(2) !== 0x46) return;
 
-    // Trame standard non compressée : en-tête 16 octets + 1024 octets uint8
+    // 1. Trame non compressée (en-tête 16 octets + 1024 bins uint8)
     if (buffer.byteLength >= 1040) {
       const bins = new Uint8Array(buffer, 16, 1024);
       this.onWaterfallLine(bins);
       return;
     }
 
-    // Trame compressée ADPCM (si le serveur force la compression)
+    // 2. Trame compressée IMA-ADPCM KiwiSDR
     let predictor = view.getInt16(16, true);
     let stepIndex = Math.max(0, Math.min(88, view.getUint8(18)));
     const out = new Uint8Array(1024);
@@ -1222,15 +1232,14 @@ class KiwiSDREngine {
         predictor += (nibble & 8) ? -diff : diff;
         predictor = Math.max(-32768, Math.min(32767, predictor));
         stepIndex = Math.max(0, Math.min(88, stepIndex + this.indexAdjustTable[nibble]));
-        // KiwiSDR encode les bins ADPCM entre 0 et 255 directement dans predictor
-        out[outIdx++] = Math.max(0, Math.min(255, predictor & 0xFF));
+        out[outIdx++] = Math.max(0, Math.min(255, predictor));
       }
     }
     this.onWaterfallLine(out);
   }
 }
 
-/* ================= LOGIQUE INTERFACE VIZSDR v0.4.1 ================= */
+/* ================= LOGIQUE INTERFACE VIZSDR v0.4.2 ================= */
 const KIWI_FILTERS = {
   am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
   fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
@@ -1267,7 +1276,7 @@ const I18N = {
     enterFreq: 'Fréquence (kHz)',
     saveBeacon: 'Balise',
     beaconsTitle: 'Balises & Fréquences sauvegardées',
-    settingsTitle: 'Paramètres VizSDR v0.4.1',
+    settingsTitle: 'Paramètres VizSDR v0.4.2',
     connSection: 'Connexion KiwiSDR',
     disconnect: 'Déconnecter',
     connect: 'Connecter',
@@ -1290,7 +1299,7 @@ const I18N = {
     enterFreq: 'Frequency (kHz)',
     saveBeacon: 'Beacon',
     beaconsTitle: 'Beacons & Saved Frequencies',
-    settingsTitle: 'VizSDR v0.4.1 Settings',
+    settingsTitle: 'VizSDR v0.4.2 Settings',
     connSection: 'KiwiSDR Connection',
     disconnect: 'Disconnect',
     connect: 'Connect',
@@ -1372,7 +1381,6 @@ function pushWaterfallRow(bins) {
   lastBins = bins;
   wfDiagBadge.textContent = `WF: ${wfLineCount} (${bins.length}b)`;
 
-  // Décale le tampon mémoire d'une ligne vers le bas (zéro flou, netteté parfaite)
   data.copyWithin(rowBytes, 0, (h - 1) * rowBytes);
 
   const denom = Math.max(1, state.wfMax - state.wfMin);
