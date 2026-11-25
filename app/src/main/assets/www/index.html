@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>VizSDR v0.5.0</title>
+  <title>VizSDR v0.5.1</title>
   <style>
     :root {
       --bg-dark: #0b0e14;
@@ -654,7 +654,7 @@
     <div class="top-left">
       <div class="brand-row">
         <span class="brand-title">VizSDR</span>
-        <span class="version-badge">v0.5.0</span>
+        <span class="version-badge">v0.5.1</span>
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text" data-i18n="disconnected">Déconnecté</span>
       </div>
@@ -808,7 +808,7 @@
 <div id="settings-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.5.0</span></h2>
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.5.1</span></h2>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
@@ -914,7 +914,7 @@
 </div>
 
 <script>
-/* ================= MOTEUR KIWISDR v0.5.0 ================= */
+/* ================= MOTEUR KIWISDR v0.5.1 ================= */
 class KiwiSDREngine {
   constructor(callbacks = {}) {
     this.onWaterfallLine = callbacks.onWaterfallLine || (() => {});
@@ -1303,7 +1303,6 @@ class KiwiSDREngine {
         }
       }
 
-      // Courbe gamma 2.6 : garde 80% du plancher de bruit en bleu nuit et détache les porteuses en jaune/rouge
       const out = new Uint8Array(1024);
       const span = Math.max(1, maxV - minV);
       for (let k = 0; k < 1024; k++) {
@@ -1316,7 +1315,7 @@ class KiwiSDREngine {
   }
 }
 
-/* ================= LOGIQUE INTERFACE VIZSDR v0.5.0 ================= */
+/* ================= LOGIQUE INTERFACE VIZSDR v0.5.1 ================= */
 const KIWI_FILTERS = {
   am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
   fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
@@ -1353,7 +1352,7 @@ const I18N = {
     enterFreq: 'Fréquence (kHz)',
     saveBeacon: 'Balise',
     beaconsTitle: 'Balises & Fréquences sauvegardées',
-    settingsTitle: 'Paramètres VizSDR v0.5.0',
+    settingsTitle: 'Paramètres VizSDR v0.5.1',
     connSection: 'Connexion KiwiSDR',
     disconnect: 'Déconnecter',
     connect: 'Connecter',
@@ -1376,7 +1375,7 @@ const I18N = {
     enterFreq: 'Frequency (kHz)',
     saveBeacon: 'Beacon',
     beaconsTitle: 'Beacons & Saved Frequencies',
-    settingsTitle: 'VizSDR v0.5.0 Settings',
+    settingsTitle: 'VizSDR v0.5.1 Settings',
     connSection: 'KiwiSDR Connection',
     disconnect: 'Disconnect',
     connect: 'Connect',
@@ -1472,6 +1471,32 @@ function shiftWaterfallHistory(deltaKhz) {
   wfCtx.putImageData(wfImgData, 0, 0);
 }
 
+function scaleWaterfallHistory(oldZoom, newZoom) {
+  if (!wfImgData || oldZoom === newZoom) return;
+  const factor = Math.pow(2, newZoom - oldZoom);
+  const h = wfCanvas.height;
+  const src = new Uint8ClampedArray(wfImgData.data);
+  const dst = wfImgData.data;
+
+  for (let y = 0; y < h; y++) {
+    const rowOff = y * 1024 * 4;
+    for (let x = 0; x < 1024; x++) {
+      const srcX = Math.round(512 + (x - 512) / factor);
+      const p = rowOff + x * 4;
+      if (srcX >= 0 && srcX < 1024) {
+        const sp = rowOff + srcX * 4;
+        dst[p] = src[sp];
+        dst[p + 1] = src[sp + 1];
+        dst[p + 2] = src[sp + 2];
+        dst[p + 3] = 255;
+      } else {
+        dst[p] = 5; dst[p + 1] = 7; dst[p + 2] = 10; dst[p + 3] = 255;
+      }
+    }
+  }
+  wfCtx.putImageData(wfImgData, 0, 0);
+}
+
 function getColorLUT(name) {
   const lut = new Uint8ClampedArray(256 * 3);
   for (let i = 0; i < 256; i++) {
@@ -1488,7 +1513,6 @@ function getColorLUT(name) {
       g = Math.round(255 * Math.max(0, 2 * t - 0.6));
       b = Math.round(255 * Math.sin(t * Math.PI));
     } else {
-      // Palette KiwiSDR authentique : bleu nuit profond -> bleu roi -> cyan -> jaune -> rouge
       if (t < 0.45) {
         const k = t / 0.45;
         r = Math.round(k * 8);
@@ -1683,7 +1707,8 @@ function updatePassbandCursor() {
   document.getElementById('passband-shade').style.width = `${widthPx}px`;
 }
 
-function updateZoomUI() {
+function updateZoomUI(prevZoom = state.zoom) {
+  scaleWaterfallHistory(prevZoom, state.zoom);
   const spanTotal = Math.max(1, state.maxFreqKhz - state.minFreqKhz);
   const curSpanKhz = spanTotal / Math.pow(2, state.zoom);
   document.getElementById('span-label').textContent = curSpanKhz >= 1000
@@ -1708,10 +1733,10 @@ document.querySelectorAll('.mode-btn').forEach((btn) => {
 });
 
 document.getElementById('btn-zoom-in').addEventListener('click', () => {
-  if (state.zoom < 14) { state.zoom++; updateZoomUI(); }
+  if (state.zoom < 14) { const prev = state.zoom; state.zoom++; updateZoomUI(prev); }
 });
 document.getElementById('btn-zoom-out').addEventListener('click', () => {
-  if (state.zoom > 0) { state.zoom--; updateZoomUI(); }
+  if (state.zoom > 0) { const prev = state.zoom; state.zoom--; updateZoomUI(prev); }
 });
 
 let isDraggingWf = false;
