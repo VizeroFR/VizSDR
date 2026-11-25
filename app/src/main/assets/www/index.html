@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>VizSDR v0.4.3</title>
+  <title>VizSDR v0.4.4</title>
   <style>
     :root {
       --bg-dark: #0b0e14;
@@ -332,7 +332,7 @@
     .offline-card p { font-size: 12px; color: #94a3b8; margin-bottom: 10px; line-height: 1.35; }
     .offline-actions { display: flex; gap: 8px; justify-content: center; }
 
-    /* ================= BARRE DU BAS (ADAPTATIVE PORTRAIT / PAYSAGE) ================= */
+    /* ================= BARRE DU BAS ================= */
     #bottom-bar {
       height: var(--bot-h);
       min-height: 106px;
@@ -627,7 +627,7 @@
     <div class="top-left">
       <div class="brand-row">
         <span class="brand-title">VizSDR</span>
-        <span class="version-badge">v0.4.3</span>
+        <span class="version-badge">v0.4.4</span>
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text" data-i18n="disconnected">Déconnecté</span>
       </div>
@@ -777,7 +777,7 @@
 <div id="settings-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.3</span></h2>
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.4</span></h2>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
@@ -883,7 +883,7 @@
 </div>
 
 <script>
-/* ================= MOTEUR KIWISDR v0.4.3 ================= */
+/* ================= MOTEUR KIWISDR v0.4.4 ================= */
 class KiwiSDREngine {
   constructor(callbacks = {}) {
     this.onWaterfallLine = callbacks.onWaterfallLine || (() => {});
@@ -1036,6 +1036,7 @@ class KiwiSDREngine {
         this.wsWf.send('SET wf_speed=2');
         this.wsWf.send('SET interp=13');
         this.wsWf.send('SET wf_comp=1');
+        this.wsWf.send('SET send_db=1');
         this.connected = true;
         this.onStatusChange('connected', clean);
       };
@@ -1052,7 +1053,7 @@ class KiwiSDREngine {
         if (evt.data instanceof ArrayBuffer) {
           this.handleWaterfallFrame(evt.data);
         } else if (typeof evt.data === 'string') {
-          wfDiagBadge.textContent = `WF MSG: ${evt.data.slice(0, 28)}`;
+          wfDiagBadge.textContent = `WF TXT: ${evt.data.slice(0, 26)}`;
           this.handleControlMessage(evt.data);
         }
       };
@@ -1150,7 +1151,13 @@ class KiwiSDREngine {
   handleAudioFrame(buffer) {
     const view = new DataView(buffer);
     if (buffer.byteLength < 10) return;
-    if (view.getUint8(0) !== 0x53 || view.getUint8(1) !== 0x4E || view.getUint8(2) !== 0x44) return;
+    const b0 = view.getUint8(0), b1 = view.getUint8(1), b2 = view.getUint8(2);
+    if (b0 === 0x4D && b1 === 0x53 && b2 === 0x47) {
+      const text = new TextDecoder().decode(new Uint8Array(buffer));
+      this.handleControlMessage(text);
+      return;
+    }
+    if (b0 !== 0x53 || b1 !== 0x4E || b2 !== 0x44) return;
 
     const flags = view.getUint8(3);
     const sMeterRaw = view.getUint16(8, false);
@@ -1203,10 +1210,21 @@ class KiwiSDREngine {
 
   handleWaterfallFrame(buffer) {
     const view = new DataView(buffer);
-    if (buffer.byteLength < 20) return;
-    // Vérifie 'W/F' (0x57 0x2F 0x46)
-    if (view.getUint8(0) !== 0x57 || view.getUint8(1) !== 0x2F || view.getUint8(2) !== 0x46) {
-      wfDiagBadge.textContent = `WF: trame ? (${buffer.byteLength}o)`;
+    if (buffer.byteLength < 8) return;
+    const b0 = view.getUint8(0), b1 = view.getUint8(1), b2 = view.getUint8(2);
+
+    // KiwiSDR envoie les messages "MSG ..." en trames binaires sur /W/F !
+    if (b0 === 0x4D && b1 === 0x53 && b2 === 0x47) {
+      const text = new TextDecoder().decode(new Uint8Array(buffer));
+      wfDiagBadge.textContent = `WF: ${text.slice(0, 26)}`;
+      this.handleControlMessage(text);
+      return;
+    }
+
+    // Vérifie l'en-tête 'W/F' (0x57 0x2F 0x46)
+    if (b0 !== 0x57 || b1 !== 0x2F || b2 !== 0x46) {
+      const tag = String.fromCharCode(b0, b1, b2);
+      wfDiagBadge.textContent = `WF: [${tag}] (${buffer.byteLength}o)`;
       return;
     }
 
@@ -1217,7 +1235,8 @@ class KiwiSDREngine {
       return;
     }
 
-    // 2. Trame compressée IMA-ADPCM KiwiSDR (bins mis à l'échelle << 8 dans predictor)
+    // 2. Trame compressée IMA-ADPCM KiwiSDR (en-tête 16 octets + predictor int16 + stepIndex uint8)
+    if (buffer.byteLength < 20) return;
     let predictor = view.getInt16(16, true);
     let stepIndex = Math.max(0, Math.min(88, view.getUint8(18)));
     const out = new Uint8Array(1024);
@@ -1236,7 +1255,6 @@ class KiwiSDREngine {
         predictor += (nibble & 8) ? -diff : diff;
         predictor = Math.max(-32768, Math.min(32767, predictor));
         stepIndex = Math.max(0, Math.min(88, stepIndex + this.indexAdjustTable[nibble]));
-        // KiwiSDR encode les bins ADPCM en 8.8 fixed-point : >> 8 redonne la valeur uint8 exacte (0..255)
         const binVal = (predictor >> 8) & 0xFF;
         out[outIdx++] = binVal;
       }
@@ -1245,7 +1263,7 @@ class KiwiSDREngine {
   }
 }
 
-/* ================= LOGIQUE INTERFACE VIZSDR v0.4.3 ================= */
+/* ================= LOGIQUE INTERFACE VIZSDR v0.4.4 ================= */
 const KIWI_FILTERS = {
   am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
   fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
@@ -1282,7 +1300,7 @@ const I18N = {
     enterFreq: 'Fréquence (kHz)',
     saveBeacon: 'Balise',
     beaconsTitle: 'Balises & Fréquences sauvegardées',
-    settingsTitle: 'Paramètres VizSDR v0.4.3',
+    settingsTitle: 'Paramètres VizSDR v0.4.4',
     connSection: 'Connexion KiwiSDR',
     disconnect: 'Déconnecter',
     connect: 'Connecter',
@@ -1305,7 +1323,7 @@ const I18N = {
     enterFreq: 'Frequency (kHz)',
     saveBeacon: 'Beacon',
     beaconsTitle: 'Beacons & Saved Frequencies',
-    settingsTitle: 'VizSDR v0.4.3 Settings',
+    settingsTitle: 'VizSDR v0.4.4 Settings',
     connSection: 'KiwiSDR Connection',
     disconnect: 'Disconnect',
     connect: 'Connect',
@@ -1319,7 +1337,6 @@ const I18N = {
   }
 };
 
-// Canvas Waterfall net (largeur fixe 1024 bins)
 const wfWrap = document.getElementById('waterfall-wrap');
 const wfCanvas = document.getElementById('wf-canvas');
 const wfCtx = wfCanvas.getContext('2d', { alpha: false });
@@ -1403,7 +1420,6 @@ function pushWaterfallRow(bins, rawBytes) {
   wfCtx.putImageData(wfImgData, 0, 0);
 }
 
-// Instance Moteur KiwiSDR
 const engine = new KiwiSDREngine({
   onWaterfallLine: (bins, rawBytes) => pushWaterfallRow(bins, rawBytes),
   onSMeter: (dbm) => {
@@ -1443,7 +1459,6 @@ const engine = new KiwiSDREngine({
   }
 });
 
-// Mise à jour fréquence & mode
 function setFrequency(newFreq) {
   state.freqKhz = Math.max(state.minFreqKhz, Math.min(state.maxFreqKhz, newFreq));
   const formatted = state.freqKhz.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
