@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>VizSDR v0.5.5</title>
+  <title>VizSDR v0.5.6</title>
   <style>
     :root {
       --bg-dark: #0b0e14;
@@ -216,7 +216,6 @@
       image-rendering: auto;
     }
 
-    /* Échelle graduée kHz façon Twente / KiwiSDR */
     #freq-ruler {
       position: absolute;
       top: 0;
@@ -311,6 +310,21 @@
       left: 50%;
       width: 1.5px;
       background: #ef4444;
+    }
+    #cursor-freq-tag {
+      position: absolute;
+      top: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(239, 68, 68, 0.7);
+      color: #fca5a5;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 4px;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
     }
 
     #beacon-overlay {
@@ -697,7 +711,7 @@
     <div class="top-left">
       <div class="brand-row">
         <span class="brand-title">VizSDR</span>
-        <span class="version-badge">v0.5.5</span>
+        <span class="version-badge">v0.5.6</span>
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text" data-i18n="disconnected">Déconnecté</span>
       </div>
@@ -739,6 +753,7 @@
       <div id="passband-shade">
         <div id="carrier-line"></div>
       </div>
+      <div id="cursor-freq-tag">4625.00</div>
     </div>
 
     <div id="handle-top" class="resize-handle"></div>
@@ -854,7 +869,7 @@
 <div id="settings-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.5.5</span></h2>
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.5.6</span></h2>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
@@ -960,7 +975,7 @@
 </div>
 
 <script>
-/* ================= MOTEUR KIWISDR v0.5.5 ================= */
+/* ================= MOTEUR KIWISDR v0.5.6 ================= */
 class KiwiSDREngine {
   constructor(callbacks = {}) {
     this.onWaterfallLine = callbacks.onWaterfallLine || (() => {});
@@ -1176,7 +1191,6 @@ class KiwiSDREngine {
     this.onStatusChange('disconnected', '');
   }
 
-  // Envoie UNIQUEMENT l'accord audio (SET mod/freq), sans décaler la fenêtre waterfall !
   setAudioTune(freqKhz, mode, lowCut, highCut, immediate = false) {
     this.freqKhz = Math.max(this.minFreqKhz, Math.min(this.maxFreqKhz, freqKhz));
     this.mode = mode;
@@ -1208,29 +1222,31 @@ class KiwiSDREngine {
     this.wsSnd.send(`SET mod=${kiwiMode} low_cut=${Math.round(this.lowCut)} high_cut=${Math.round(this.highCut)} freq=${dialFreq.toFixed(3)}`);
   }
 
-  // Met à jour la fenêtre waterfall (zoom + centre) uniquement lors du zoom ou d'un recentrage
   setWaterfallWindow(zoomLevel, centerKhz) {
     this.zoom = Math.max(0, Math.min(14, zoomLevel));
     this.wfCenterKhz = Math.max(this.minFreqKhz, Math.min(this.maxFreqKhz, centerKhz));
     return this.sendZoom();
   }
 
+  // Calcul start aligné sur le pas réel du waterfall (1024 bins par fenêtre à zoom=Z)
   sendZoom() {
     const spanTotal = Math.max(1, this.maxFreqKhz - this.minFreqKhz);
     const spanKhz = spanTotal / Math.pow(2, this.zoom);
     const relCenter = Math.max(0, this.wfCenterKhz - this.minFreqKhz);
     const desiredLeftKhz = Math.max(0, Math.min(spanTotal - spanKhz, relCenter - spanKhz / 2));
 
-    // Grille officielle KiwiSDR : bins FFT de 0 à 524288 (2^19) ou 1048576 (2^20) selon le serveur,
-    // avec start quantifié sur des multiples exacts de (1024 >> zoom) pour que le serveur n'arrondisse pas !
-    const totalBins = 1048576;
-    const stepBin = Math.max(1, Math.round(totalBins / (1024 * Math.pow(2, this.zoom))));
-    const rawBin = Math.round((desiredLeftKhz / spanTotal) * totalBins);
-    const exactStartBin = Math.floor(rawBin / stepBin) * stepBin;
-    const exactLeftKhz = this.minFreqKhz + (exactStartBin / totalBins) * spanTotal;
+    // À zoom=Z, 1024 bins couvrent spanKhz ; un bin vaut spanKhz / 1024 kHz
+    const khzPerBin = spanKhz / 1024;
+    const stepBins = Math.max(1, Math.round(0.05 / khzPerBin));
+    const rawBinOffset = Math.round(desiredLeftKhz / khzPerBin);
+    const quantizedBinOffset = Math.floor(rawBinOffset / stepBins) * stepBins;
+    const exactLeftKhz = Math.max(this.minFreqKhz, Math.min(this.maxFreqKhz - spanKhz, this.minFreqKhz + quantizedBinOffset * khzPerBin));
+
+    // start en bins de base (0..1048576) correspondant exactement à exactLeftKhz
+    const startBin = Math.max(0, Math.round(((exactLeftKhz - this.minFreqKhz) / spanTotal) * 1048576));
 
     if (this.wsWf && this.wsWf.readyState === WebSocket.OPEN) {
-      this.wsWf.send(`SET zoom=${this.zoom} start=${exactStartBin}`);
+      this.wsWf.send(`SET zoom=${this.zoom} start=${startBin}`);
     }
     return { leftKhz: exactLeftKhz, rightKhz: exactLeftKhz + spanKhz };
   }
@@ -1265,12 +1281,17 @@ class KiwiSDREngine {
         this.onServerInfo({ minFreqKhz: this.minFreqKhz, maxFreqKhz: this.maxFreqKhz });
       } else if (key === 'bandwidth') {
         const bwKhz = (parseFloat(val) || 30000000) / 1000;
-        this.maxFreqKhz = this.minFreqKhz + bwKhz;
-        this.onServerInfo({ minFreqKhz: this.minFreqKhz, maxFreqKhz: this.maxFreqKhz });
+        if (bwKhz >= 1000) {
+          this.maxFreqKhz = this.minFreqKhz + bwKhz;
+          this.onServerInfo({ minFreqKhz: this.minFreqKhz, maxFreqKhz: this.maxFreqKhz });
+        }
       } else if (key === 'load_cfg') {
         try {
           const cfg = JSON.parse(val);
-          this.onServerInfo({ name: cfg.rx_name || this.host, location: cfg.rx_qth || '' });
+          const cleanName = typeof cfg.rx_name === 'string' ? cfg.rx_name.trim() : '';
+          if (cleanName && cleanName.length > 2 && !/^0-/.test(cleanName)) {
+            this.onServerInfo({ name: cleanName, location: cfg.rx_qth || '' });
+          }
         } catch (_) {}
       }
     }
@@ -1384,7 +1405,7 @@ class KiwiSDREngine {
   }
 }
 
-/* ================= LOGIQUE INTERFACE VIZSDR v0.5.5 ================= */
+/* ================= LOGIQUE INTERFACE VIZSDR v0.5.6 ================= */
 const KIWI_FILTERS = {
   am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
   fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
@@ -1402,7 +1423,6 @@ const state = {
   widthState: 'normal',
   customFilters: JSON.parse(localStorage.getItem('viz_filters') || 'null') || JSON.parse(JSON.stringify(KIWI_FILTERS)),
   zoom: 7,
-  // Bornes exactes de la fenêtre affichée (fixes pendant qu'on déplace le curseur !)
   wfLeftKhz: 4625.0 - 117.2,
   wfRightKhz: 4625.0 + 117.2,
   wfMin: parseInt(localStorage.getItem('viz_wf_min') || '-118', 10),
@@ -1425,7 +1445,7 @@ const I18N = {
     enterFreq: 'Fréquence (kHz)',
     saveBeacon: 'Balise',
     beaconsTitle: 'Balises & Fréquences sauvegardées',
-    settingsTitle: 'Paramètres VizSDR v0.5.5',
+    settingsTitle: 'Paramètres VizSDR v0.5.6',
     connSection: 'Connexion KiwiSDR',
     disconnect: 'Déconnecter',
     connect: 'Connecter',
@@ -1448,7 +1468,7 @@ const I18N = {
     enterFreq: 'Frequency (kHz)',
     saveBeacon: 'Beacon',
     beaconsTitle: 'Beacons & Saved Frequencies',
-    settingsTitle: 'VizSDR v0.5.5 Settings',
+    settingsTitle: 'VizSDR v0.5.6 Settings',
     connSection: 'KiwiSDR Connection',
     disconnect: 'Disconnect',
     connect: 'Connect',
@@ -1470,6 +1490,7 @@ const wfMsgBadge = document.getElementById('wf-msg-badge');
 const freqDisplayEl = document.getElementById('freq-display');
 const cursorEl = document.getElementById('tune-cursor');
 const passbandEl = document.getElementById('passband-shade');
+const cursorFreqTagEl = document.getElementById('cursor-freq-tag');
 const beaconOverlayEl = document.getElementById('beacon-overlay');
 const freqRulerEl = document.getElementById('freq-ruler');
 
@@ -1687,7 +1708,6 @@ function showBandGuardToast(targetFreq) {
   guardToastTimer = setTimeout(() => el.classList.remove('show'), 1800);
 }
 
-// Centre la fenêtre du waterfall autour de `centerKhz` et efface l'ancien historique décalé
 function recenterWaterfall(centerKhz) {
   const bounds = engine.setWaterfallWindow(state.zoom, centerKhz);
   state.wfLeftKhz = bounds.leftKhz;
@@ -1698,7 +1718,6 @@ function recenterWaterfall(centerKhz) {
   updatePassbandCursor();
 }
 
-// Change la fréquence audio sans faire bouger le waterfall (sauf si on sort de la fenêtre visible)
 function setFrequency(newFreq, allowRecenter = false, immediate = false) {
   let target = newFreq;
   if (newFreq < state.minFreqKhz || newFreq > state.maxFreqKhz) {
@@ -1717,6 +1736,7 @@ function setFrequency(newFreq, allowRecenter = false, immediate = false) {
   state.freqKhz = target;
   const formatted = state.freqKhz.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   freqDisplayEl.textContent = `${formatted} kHz`;
+  cursorFreqTagEl.textContent = state.freqKhz.toFixed(2);
 
   const [low, high] = state.customFilters[state.mode][state.widthState];
   engine.setAudioTune(state.freqKhz, state.mode, low, high, immediate);
@@ -1809,10 +1829,6 @@ document.getElementById('btn-center-wf').addEventListener('click', () => {
   recenterWaterfall(state.freqKhz);
 });
 
-// Interaction tactile façon WebSDR Twente :
-// - Toucher un point sur le waterfall cale immédiatement le curseur et le son sur cette fréquence
-// - Glisser le doigt déplace le curseur sur le spectre fixe (0 redraw du canvas = 60 FPS constants)
-// - Relâcher près d'un bord (< 8 %) recentre automatiquement la vue
 let isDraggingWf = false;
 
 function freqFromClientX(clientX) {
@@ -1907,7 +1923,6 @@ function renderRulerAndBeacons() {
   const rightKhz = state.wfRightKhz;
   const curSpan = Math.max(0.001, rightKhz - leftKhz);
 
-  // Règle graduée en haut du waterfall
   freqRulerEl.innerHTML = '';
   const rawStep = curSpan / 5;
   const pow10 = Math.pow(10, Math.floor(Math.log10(rawStep)));
@@ -1925,7 +1940,6 @@ function renderRulerAndBeacons() {
     freqRulerEl.appendChild(tick);
   }
 
-  // Balises visibles
   beaconOverlayEl.innerHTML = '';
   state.beacons.forEach((b) => {
     if (b.freq >= leftKhz && b.freq <= rightKhz) {
