@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>VizSDR v0.4.7</title>
+  <title>VizSDR v0.4.8</title>
   <style>
     :root {
       --bg-dark: #0b0e14;
@@ -220,9 +220,9 @@
       position: absolute;
       bottom: 6px;
       left: 8px;
-      background: rgba(11, 14, 20, 0.78);
-      border: 1px solid rgba(148, 163, 184, 0.25);
-      color: #94a3b8;
+      background: rgba(11, 14, 20, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: #cbd5e1;
       font-size: 10px;
       font-weight: 700;
       padding: 2px 6px;
@@ -646,7 +646,7 @@
     <div class="top-left">
       <div class="brand-row">
         <span class="brand-title">VizSDR</span>
-        <span class="version-badge">v0.4.7</span>
+        <span class="version-badge">v0.4.8</span>
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text" data-i18n="disconnected">Déconnecté</span>
       </div>
@@ -797,7 +797,7 @@
 <div id="settings-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.7</span></h2>
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.8</span></h2>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
@@ -903,7 +903,7 @@
 </div>
 
 <script>
-/* ================= MOTEUR KIWISDR v0.4.7 ================= */
+/* ================= MOTEUR KIWISDR v0.4.8 ================= */
 class KiwiSDREngine {
   constructor(callbacks = {}) {
     this.onWaterfallLine = callbacks.onWaterfallLine || (() => {});
@@ -914,6 +914,7 @@ class KiwiSDREngine {
     this.wsSnd = null;
     this.wsWf = null;
     this.keepAliveTimer = null;
+    this.wfKickTimer = null;
     this.connected = false;
 
     this.host = '';
@@ -926,6 +927,10 @@ class KiwiSDREngine {
     this.highCut = 2700;
     this.zoom = 7;
     this.agcOn = true;
+
+    // État ADPCM persistant pour le flux waterfall
+    this.wfAdpcmPredictor = 0;
+    this.wfAdpcmIndex = 0;
 
     this.audioCtx = null;
     this.scriptNode = null;
@@ -1000,6 +1005,8 @@ class KiwiSDREngine {
   connect(rawUrl) {
     this.disconnect();
     this.initAudio();
+    this.wfAdpcmPredictor = 0;
+    this.wfAdpcmIndex = 0;
 
     let clean = rawUrl.trim().replace(/\/+$/, '');
     const isSecure = clean.startsWith('https://') || clean.startsWith('wss://');
@@ -1047,7 +1054,7 @@ class KiwiSDREngine {
       this.wsWf.binaryType = 'arraybuffer';
 
       this.wsWf.onopen = () => {
-        wfDiagBadge.textContent = 'WF: init flux...';
+        wfDiagBadge.textContent = 'WF: amorçage...';
         this.wsWf.send('SET auth t=kiwi p=#');
         this.wsWf.send(`SET ident_user=${encodeURIComponent(this.callsign || 'VizSDR_User')}`);
         this.wsWf.send('SET maxdb=0 mindb=-100');
@@ -1074,8 +1081,22 @@ class KiwiSDREngine {
         } else if (typeof evt.data === 'string') {
           wfDiagBadge.textContent = `WF TXT: ${evt.data.slice(0, 26)}`;
           this.handleControlMessage(evt.data);
+          this.sendZoom();
         }
       };
+
+      // Relance automatique de sendZoom() tant qu'aucune trame binaire n'est arrivée
+      this.wfKickTimer = setInterval(() => {
+        if (wfLineCount === 0 && this.wsWf && this.wsWf.readyState === WebSocket.OPEN) {
+          this.wsWf.send('SET wf_speed=2');
+          this.wsWf.send('SET wf_comp=1');
+          this.wsWf.send('SET send_db=1');
+          this.sendZoom();
+        } else if (wfLineCount > 0 && this.wfKickTimer) {
+          clearInterval(this.wfKickTimer);
+          this.wfKickTimer = null;
+        }
+      }, 1200);
 
       this.keepAliveTimer = setInterval(() => {
         if (this.wsSnd && this.wsSnd.readyState === WebSocket.OPEN) this.wsSnd.send('SET keepalive');
@@ -1088,7 +1109,9 @@ class KiwiSDREngine {
 
   disconnect() {
     if (this.keepAliveTimer) clearInterval(this.keepAliveTimer);
+    if (this.wfKickTimer) clearInterval(this.wfKickTimer);
     this.keepAliveTimer = null;
+    this.wfKickTimer = null;
     if (this.wsSnd) { try { this.wsSnd.close(); } catch (_) {} this.wsSnd = null; }
     if (this.wsWf) { try { this.wsWf.close(); } catch (_) {} this.wsWf = null; }
     this.connected = false;
@@ -1236,6 +1259,8 @@ class KiwiSDREngine {
       const text = new TextDecoder().decode(new Uint8Array(buffer));
       wfDiagBadge.textContent = `WF: ${text.slice(0, 26)}`;
       this.handleControlMessage(text);
+      // Dès réception d'un MSG du serveur, renvoie le zoom pour débloquer le flux
+      this.sendZoom();
       return;
     }
 
@@ -1245,43 +1270,52 @@ class KiwiSDREngine {
       return;
     }
 
-    // 1. Trame non compressée : en-tête 16 octets + 1024 bins uint8 directs (1040 octets)
+    // 1. Trame non compressée (1040 octets = 16 en-tête + 1024 uint8)
     if (buffer.byteLength >= 1040) {
       const bins = new Uint8Array(buffer, 16, 1024);
       this.onWaterfallLine(bins, buffer.byteLength);
       return;
     }
 
-    // 2. Trame compressée IMA-ADPCM KiwiSDR (533 octets = 21 octets d'en-tête + 512 octets ADPCM)
+    // 2. Trame compressée IMA-ADPCM (533 octets = 21 en-tête + 512 octets ADPCM)
     if (buffer.byteLength >= 533) {
-      let predictor = view.getInt16(16, true);
-      let stepIndex = Math.max(0, Math.min(88, view.getUint8(18)));
-      const out = new Uint8Array(1024);
-      let outIdx = 0;
+      const rawVals = new Int32Array(1024);
+      let idx = 0;
+      let minV = 2147483647, maxV = -2147483648;
 
-      for (let i = 21; i < buffer.byteLength && outIdx < 1024; i++) {
+      for (let i = 21; i < buffer.byteLength && idx < 1024; i++) {
         const byte = view.getUint8(i);
         const nibbles = [byte & 0x0F, (byte >> 4) & 0x0F];
-        for (let n = 0; n < 2 && outIdx < 1024; n++) {
+        for (let n = 0; n < 2 && idx < 1024; n++) {
           const nibble = nibbles[n];
-          const step = this.stepSizeTable[stepIndex];
+          const step = this.stepSizeTable[this.wfAdpcmIndex];
           let diff = step >> 3;
           if (nibble & 1) diff += step >> 2;
           if (nibble & 2) diff += step >> 1;
           if (nibble & 4) diff += step;
-          predictor += (nibble & 8) ? -diff : diff;
-          predictor = Math.max(-32768, Math.min(32767, predictor));
-          stepIndex = Math.max(0, Math.min(88, stepIndex + this.indexAdjustTable[nibble]));
-          const unsignedVal = ((predictor + 32768) >> 8) & 0xFF;
-          out[outIdx++] = unsignedVal;
+          this.wfAdpcmPredictor += (nibble & 8) ? -diff : diff;
+          this.wfAdpcmPredictor = Math.max(-32768, Math.min(32767, this.wfAdpcmPredictor));
+          this.wfAdpcmIndex = Math.max(0, Math.min(88, this.wfAdpcmIndex + this.indexAdjustTable[nibble]));
+          rawVals[idx++] = this.wfAdpcmPredictor;
+          if (this.wfAdpcmPredictor < minV) minV = this.wfAdpcmPredictor;
+          if (this.wfAdpcmPredictor > maxV) maxV = this.wfAdpcmPredictor;
         }
+      }
+
+      // Projection dynamique sur 0..255 (et conversion dBm réaliste autour de -125..-60 dBm)
+      const out = new Uint8Array(1024);
+      const span = Math.max(1, maxV - minV);
+      for (let k = 0; k < 1024; k++) {
+        const norm = (rawVals[k] - minV) / span; // 0..1
+        // Mappe 0..1 vers la plage d'octets 125..205 (-130 dBm à -50 dBm)
+        out[k] = Math.round(125 + norm * 80);
       }
       this.onWaterfallLine(out, buffer.byteLength);
     }
   }
 }
 
-/* ================= LOGIQUE INTERFACE VIZSDR v0.4.7 ================= */
+/* ================= LOGIQUE INTERFACE VIZSDR v0.4.8 ================= */
 const KIWI_FILTERS = {
   am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
   fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
@@ -1319,7 +1353,7 @@ const I18N = {
     enterFreq: 'Fréquence (kHz)',
     saveBeacon: 'Balise',
     beaconsTitle: 'Balises & Fréquences sauvegardées',
-    settingsTitle: 'Paramètres VizSDR v0.4.7',
+    settingsTitle: 'Paramètres VizSDR v0.4.8',
     connSection: 'Connexion KiwiSDR',
     disconnect: 'Déconnecter',
     connect: 'Connecter',
@@ -1342,7 +1376,7 @@ const I18N = {
     enterFreq: 'Frequency (kHz)',
     saveBeacon: 'Beacon',
     beaconsTitle: 'Beacons & Saved Frequencies',
-    settingsTitle: 'VizSDR v0.4.7 Settings',
+    settingsTitle: 'VizSDR v0.4.8 Settings',
     connSection: 'KiwiSDR Connection',
     disconnect: 'Disconnect',
     connect: 'Connect',
