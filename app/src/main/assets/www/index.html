@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>VizSDR v0.4.6</title>
+  <title>VizSDR v0.4.7</title>
   <style>
     :root {
       --bg-dark: #0b0e14;
@@ -646,7 +646,7 @@
     <div class="top-left">
       <div class="brand-row">
         <span class="brand-title">VizSDR</span>
-        <span class="version-badge">v0.4.6</span>
+        <span class="version-badge">v0.4.7</span>
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text" data-i18n="disconnected">Déconnecté</span>
       </div>
@@ -797,7 +797,7 @@
 <div id="settings-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.6</span></h2>
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.7</span></h2>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
@@ -903,7 +903,7 @@
 </div>
 
 <script>
-/* ================= MOTEUR KIWISDR v0.4.6 ================= */
+/* ================= MOTEUR KIWISDR v0.4.7 ================= */
 class KiwiSDREngine {
   constructor(callbacks = {}) {
     this.onWaterfallLine = callbacks.onWaterfallLine || (() => {});
@@ -1053,10 +1053,9 @@ class KiwiSDREngine {
         this.wsWf.send('SET maxdb=0 mindb=-100');
         this.wsWf.send('SET wf_speed=2');
         this.wsWf.send('SET interp=13');
+        this.wsWf.send('SET wf_comp=1');
         this.wsWf.send('SET send_db=1');
         this.sendZoom();
-        // Force le mode non compressé (1040 octets = 16 en-tête + 1024 uint8 bruts)
-        this.wsWf.send('SET wf_comp=0');
         this.connected = true;
         this.onStatusChange('connected', clean);
       };
@@ -1253,7 +1252,7 @@ class KiwiSDREngine {
       return;
     }
 
-    // 2. Fallback si un serveur impose quand même la compression (533 octets = 21 octets d'en-tête + 512 octets ADPCM)
+    // 2. Trame compressée IMA-ADPCM KiwiSDR (533 octets = 21 octets d'en-tête + 512 octets ADPCM)
     if (buffer.byteLength >= 533) {
       let predictor = view.getInt16(16, true);
       let stepIndex = Math.max(0, Math.min(88, view.getUint8(18)));
@@ -1273,7 +1272,6 @@ class KiwiSDREngine {
           predictor += (nibble & 8) ? -diff : diff;
           predictor = Math.max(-32768, Math.min(32767, predictor));
           stepIndex = Math.max(0, Math.min(88, stepIndex + this.indexAdjustTable[nibble]));
-          // Convertit le signal signé 16 bits (-32768..+32767) vers uint8 non signé (0..255)
           const unsignedVal = ((predictor + 32768) >> 8) & 0xFF;
           out[outIdx++] = unsignedVal;
         }
@@ -1283,7 +1281,7 @@ class KiwiSDREngine {
   }
 }
 
-/* ================= LOGIQUE INTERFACE VIZSDR v0.4.6 ================= */
+/* ================= LOGIQUE INTERFACE VIZSDR v0.4.7 ================= */
 const KIWI_FILTERS = {
   am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
   fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
@@ -1321,7 +1319,7 @@ const I18N = {
     enterFreq: 'Fréquence (kHz)',
     saveBeacon: 'Balise',
     beaconsTitle: 'Balises & Fréquences sauvegardées',
-    settingsTitle: 'Paramètres VizSDR v0.4.6',
+    settingsTitle: 'Paramètres VizSDR v0.4.7',
     connSection: 'Connexion KiwiSDR',
     disconnect: 'Déconnecter',
     connect: 'Connecter',
@@ -1344,7 +1342,7 @@ const I18N = {
     enterFreq: 'Frequency (kHz)',
     saveBeacon: 'Beacon',
     beaconsTitle: 'Beacons & Saved Frequencies',
-    settingsTitle: 'VizSDR v0.4.6 Settings',
+    settingsTitle: 'VizSDR v0.4.7 Settings',
     connSection: 'KiwiSDR Connection',
     disconnect: 'Disconnect',
     connect: 'Connect',
