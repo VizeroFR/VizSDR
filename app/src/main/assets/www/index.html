@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>VizSDR v0.4.0</title>
+  <title>VizSDR v0.4.1</title>
   <style>
     :root {
       --bg-dark: #0b0e14;
@@ -17,8 +17,8 @@
       --mode-narrow: #ef4444;
       --mode-wide: #eab308;
       --danger: #ef4444;
-      --top-h: 16.6vh;
-      --bot-h: 16.6vh;
+      --top-h: 14vh;
+      --bot-h: 18vh;
     }
 
     * {
@@ -50,17 +50,17 @@
     /* ================= BARRE DU HAUT ================= */
     #top-bar {
       height: var(--top-h);
-      min-height: 64px;
-      max-height: 32vh;
+      min-height: 62px;
+      max-height: 28vh;
       background: linear-gradient(180deg, #161c28 0%, #111620 100%);
       border-bottom: 1px solid var(--panel-border);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 4px 14px;
+      padding: 4px 10px;
       position: relative;
       z-index: 20;
-      gap: 10px;
+      gap: 8px;
     }
 
     .top-left {
@@ -69,17 +69,19 @@
       justify-content: center;
       gap: 2px;
       min-width: 0;
+      flex-shrink: 1;
     }
 
     .brand-row {
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 11px;
+      gap: 5px;
+      font-size: 10px;
       color: var(--text-muted);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      max-width: 44vw;
     }
 
     .brand-title { font-weight: 700; color: #cbd5e1; letter-spacing: 0.4px; }
@@ -88,9 +90,9 @@
       background: var(--accent-blue-dim);
       color: #60a5fa;
       border: 1px solid rgba(59, 130, 246, 0.35);
-      padding: 1px 5px;
+      padding: 1px 4px;
       border-radius: 4px;
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 600;
     }
 
@@ -106,31 +108,29 @@
     .status-dot.connecting { background: #eab308; }
     .status-dot.error { background: #ef4444; }
 
-    .freq-row { display: flex; align-items: center; gap: 8px; }
+    .freq-row { display: flex; align-items: center; gap: 6px; }
 
     #freq-display {
-      font-size: clamp(19px, 3.2vw, 26px);
+      font-size: clamp(16px, 4.2vw, 24px);
       font-weight: 800;
       font-variant-numeric: tabular-nums;
       color: #ffffff;
       cursor: pointer;
-      letter-spacing: 0.5px;
-      padding: 1px 6px;
+      letter-spacing: 0.3px;
+      padding: 1px 5px;
       border-radius: 5px;
       background: rgba(255, 255, 255, 0.04);
-      border: 1px solid transparent;
+      white-space: nowrap;
     }
-    #freq-display:active { border-color: var(--accent-blue); }
 
     #top-mode-badge {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 800;
-      padding: 3px 8px;
+      padding: 2px 6px;
       border-radius: 5px;
       background: rgba(255, 255, 255, 0.08);
       color: var(--mode-normal);
       border: 1px solid rgba(255, 255, 255, 0.2);
-      letter-spacing: 0.6px;
     }
     #top-mode-badge.narrow {
       color: var(--mode-narrow);
@@ -145,25 +145,27 @@
 
     .top-center {
       flex: 1;
-      max-width: 280px;
+      max-width: 220px;
+      min-width: 76px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
     }
 
     .smeter-header {
       display: flex;
       justify-content: space-between;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
       color: var(--text-muted);
       font-variant-numeric: tabular-nums;
+      white-space: nowrap;
     }
     #dbm-val { color: #60a5fa; font-weight: 700; }
 
     .smeter-track {
       width: 100%;
-      height: 8px;
+      height: 7px;
       background: #0a0d12;
       border-radius: 4px;
       overflow: hidden;
@@ -176,23 +178,22 @@
       transition: width 0.08s linear;
     }
 
-    .top-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .top-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
     .icon-btn {
       background: #1b2230;
       border: 1px solid #2a3548;
       color: #e2e8f0;
-      height: 36px;
-      min-width: 36px;
-      padding: 0 10px;
+      height: 34px;
+      min-width: 34px;
+      padding: 0 8px;
       border-radius: 8px;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 5px;
     }
     .icon-btn:active { background: #263145; border-color: var(--accent-blue); }
 
@@ -212,6 +213,7 @@
       width: 100%;
       height: 100%;
       display: block;
+      image-rendering: pixelated;
     }
 
     #wf-diag-badge {
@@ -282,21 +284,20 @@
     .resize-handle {
       position: absolute;
       right: 6px;
-      width: 44px;
-      height: 14px;
+      width: 40px;
+      height: 12px;
       background: rgba(239, 68, 68, 0.85);
       border: 1px solid #fca5a5;
-      border-radius: 7px;
+      border-radius: 6px;
       z-index: 30;
       cursor: ns-resize;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
     }
     .resize-handle::after {
       content: "";
-      width: 20px;
+      width: 18px;
       height: 2px;
       background: #fff;
       border-radius: 2px;
@@ -304,7 +305,6 @@
     #handle-top { top: 4px; }
     #handle-bot { bottom: 4px; }
 
-    /* Pop-up Hors-Ligne */
     #offline-popup {
       position: absolute;
       inset: 0;
@@ -332,24 +332,24 @@
     .offline-card p { font-size: 12px; color: #94a3b8; margin-bottom: 10px; line-height: 1.35; }
     .offline-actions { display: flex; gap: 8px; justify-content: center; }
 
-    /* ================= BARRE DU BAS ================= */
+    /* ================= BARRE DU BAS (ADAPTATIVE PORTRAIT / PAYSAGE) ================= */
     #bottom-bar {
       height: var(--bot-h);
-      min-height: 78px;
-      max-height: 36vh;
+      min-height: 106px;
+      max-height: 38vh;
       background: linear-gradient(0deg, #161c28 0%, #111620 100%);
       border-top: 1px solid var(--panel-border);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 5px 10px;
+      padding: 5px 8px;
       z-index: 20;
       gap: 5px;
     }
 
     .bot-row-top {
       position: relative;
-      height: 32px;
+      height: 28px;
       display: flex;
       align-items: center;
       justify-content: flex-end;
@@ -362,17 +362,17 @@
       transform: translateX(-50%);
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .zoom-btn {
-      width: 54px;
-      height: 30px;
-      border-radius: 7px;
+      width: 46px;
+      height: 26px;
+      border-radius: 6px;
       background: #1e293b;
       border: 1px solid #334155;
       color: #f8fafc;
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 800;
       line-height: 1;
       cursor: pointer;
@@ -380,23 +380,23 @@
       align-items: center;
       justify-content: center;
     }
-    .zoom-btn:active { background: var(--accent-blue); border-color: #93c5fd; }
+    .zoom-btn:active { background: var(--accent-blue); }
 
     #span-label {
       font-size: 11px;
       font-weight: 700;
       color: #93c5fd;
-      min-width: 72px;
+      min-width: 68px;
       text-align: center;
       font-variant-numeric: tabular-nums;
     }
 
     #custom-filter-btn {
       display: none;
-      height: 28px;
-      padding: 0 10px;
+      height: 26px;
+      padding: 0 8px;
       border-radius: 6px;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       cursor: pointer;
       z-index: 2;
@@ -418,9 +418,10 @@
 
     .bot-row-main {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
+      gap: 6px;
       width: 100%;
       flex: 1;
     }
@@ -428,69 +429,51 @@
     .modes-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 6px;
-      flex: 1.25;
-      height: 100%;
-      max-height: 38px;
+      gap: 5px;
+      flex: 1 1 260px;
+      height: 32px;
     }
 
     .mode-btn {
       background: #1a2232;
       border: 1px solid #2b364c;
-      border-radius: 7px;
+      border-radius: 6px;
       color: var(--mode-normal);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 800;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.1s;
     }
-    .mode-btn.active-normal {
-      background: rgba(248, 250, 252, 0.16);
-      border-color: #f8fafc;
-      color: #ffffff;
-    }
-    .mode-btn.active-narrow {
-      background: rgba(239, 68, 68, 0.22);
-      border-color: #ef4444;
-      color: #fca5a5;
-    }
-    .mode-btn.active-wide {
-      background: rgba(234, 179, 8, 0.22);
-      border-color: #eab308;
-      color: #fde047;
-    }
+    .mode-btn.active-normal { background: rgba(248, 250, 252, 0.16); border-color: #f8fafc; color: #ffffff; }
+    .mode-btn.active-narrow { background: rgba(239, 68, 68, 0.22); border-color: #ef4444; color: #fca5a5; }
+    .mode-btn.active-wide   { background: rgba(234, 179, 8, 0.22); border-color: #eab308; color: #fde047; }
 
     .audio-controls {
       display: flex;
       align-items: center;
-      gap: 6px;
-      flex: 1;
-      justify-content: flex-end;
+      gap: 5px;
+      flex: 1 1 300px;
+      justify-content: space-between;
     }
 
     .ctrl-pill {
-      height: 34px;
-      padding: 0 8px;
-      border-radius: 7px;
+      height: 30px;
+      padding: 0 7px;
+      border-radius: 6px;
       background: #1a2232;
       border: 1px solid #2b364c;
       color: #e2e8f0;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
       cursor: pointer;
       white-space: nowrap;
     }
-    .ctrl-pill.recording {
-      background: rgba(239, 68, 68, 0.24);
-      border-color: #ef4444;
-      color: #fca5a5;
-    }
+    .ctrl-pill.recording { background: rgba(239, 68, 68, 0.24); border-color: #ef4444; color: #fca5a5; }
     .ctrl-pill.muted { border-color: #ef4444; color: #fca5a5; }
 
     .slider-box {
@@ -499,16 +482,18 @@
       gap: 4px;
       background: #1a2232;
       border: 1px solid #2b364c;
-      border-radius: 7px;
-      padding: 0 7px;
-      height: 34px;
-      font-size: 10px;
+      border-radius: 6px;
+      padding: 0 6px;
+      height: 30px;
+      font-size: 9px;
       font-weight: 700;
       color: #94a3b8;
+      flex: 1;
+      min-width: 72px;
     }
-    .slider-box input[type="range"] { width: 54px; accent-color: var(--accent-blue); }
+    .slider-box input[type="range"] { width: 100%; min-width: 40px; accent-color: var(--accent-blue); }
 
-    /* ================= MODALES & TIROIRS ================= */
+    /* ================= MODALES ================= */
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -586,7 +571,6 @@
       font-size: 12px;
       outline: none;
     }
-    input[type="text"]:focus, input[type="number"]:focus { border-color: var(--accent-blue); }
 
     .btn-primary {
       background: var(--accent-blue);
@@ -608,7 +592,6 @@
       font-weight: 600;
       cursor: pointer;
     }
-    .btn-secondary:active { border-color: var(--accent-blue); background: #263449; }
 
     .dir-item, .beacon-item {
       display: flex;
@@ -631,7 +614,6 @@
       opacity: 0;
       z-index: 100;
       transition: all 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-      filter: drop-shadow(0 8px 20px rgba(0,0,0,0.8));
     }
     #easter-egg-toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
 
@@ -645,13 +627,13 @@
     <div class="top-left">
       <div class="brand-row">
         <span class="brand-title">VizSDR</span>
-        <span class="version-badge">v0.4.0</span>
+        <span class="version-badge">v0.4.1</span>
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text" data-i18n="disconnected">Déconnecté</span>
       </div>
       <div class="freq-row">
-        <div id="freq-display" title="Cliquer pour saisir une fréquence">4 625.00 kHz</div>
-        <span id="top-mode-badge">AM</span>
+        <div id="freq-display" title="Cliquer pour saisir une fréquence">4 625,00 kHz</div>
+        <span id="top-mode-badge">USB</span>
       </div>
     </div>
 
@@ -716,10 +698,10 @@
 
     <div class="bot-row-main">
       <div class="modes-grid">
-        <button class="mode-btn active-normal" data-mode="am">AM</button>
+        <button class="mode-btn" data-mode="am">AM</button>
         <button class="mode-btn" data-mode="fm">FM</button>
         <button class="mode-btn" data-mode="lsb">LSB</button>
-        <button class="mode-btn" data-mode="usb">USB</button>
+        <button class="mode-btn active-normal" data-mode="usb">USB</button>
         <button class="mode-btn" data-mode="cw">CW</button>
       </div>
 
@@ -795,7 +777,7 @@
 <div id="settings-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.0</span></h2>
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.1</span></h2>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
@@ -848,8 +830,8 @@
         <div class="form-row">
           <span>WF Min / Max (dB)</span>
           <div style="display:flex; gap:5px; align-items:center;">
-            <input id="wf-min" type="number" value="-135" style="width:64px;" />
-            <input id="wf-max" type="number" value="-45" style="width:64px;" />
+            <input id="wf-min" type="number" value="-130" style="width:64px;" />
+            <input id="wf-max" type="number" value="-55" style="width:64px;" />
             <button id="btn-wf-autoscale" class="btn-secondary">Auto</button>
           </div>
         </div>
@@ -901,7 +883,7 @@
 </div>
 
 <script>
-/* ================= MOTEUR KIWISDR v0.4.0 ================= */
+/* ================= MOTEUR KIWISDR v0.4.1 ================= */
 class KiwiSDREngine {
   constructor(callbacks = {}) {
     this.onWaterfallLine = callbacks.onWaterfallLine || (() => {});
@@ -919,9 +901,9 @@ class KiwiSDREngine {
     this.minFreqKhz = 0;
     this.maxFreqKhz = 30000;
     this.freqKhz = 4625.0;
-    this.mode = 'am';
-    this.lowCut = -4900;
-    this.highCut = 4900;
+    this.mode = 'usb';
+    this.lowCut = 300;
+    this.highCut = 2700;
     this.zoom = 7;
     this.agcOn = true;
 
@@ -933,13 +915,12 @@ class KiwiSDREngine {
     this.squelchDbm = -135;
     this.currentDbm = -120;
 
-    // Tampon circulaire audio haute stabilité
+    // Tampon circulaire audio continu sans hachage
     this.ringBuffer = new Float32Array(131072);
     this.writePtr = 0;
     this.readPtr = 0;
     this.bufferedSamples = 0;
-    this.prebufferTarget = 2400; // ~200ms à 12kHz
-    this.audioReadyToPlay = false;
+    this.lastSample = 0;
 
     this.isRecordingWav = false;
     this.wavChunks = [];
@@ -964,27 +945,31 @@ class KiwiSDREngine {
 
       this.scriptNode.onaudioprocess = (e) => {
         const out = e.outputBuffer.getChannelData(0);
-        const ratio = 12000 / this.audioCtx.sampleRate;
+        const baseRatio = 12000 / this.audioCtx.sampleRate;
         const squelchClosed = this.currentDbm < this.squelchDbm;
 
-        if (this.bufferedSamples < 128) {
-          this.audioReadyToPlay = false;
-        } else if (this.bufferedSamples >= this.prebufferTarget) {
-          this.audioReadyToPlay = true;
-        }
+        // Légère adaptation de vitesse pour maintenir ~3000 échantillons d'avance sans jamais couper
+        let ratio = baseRatio;
+        if (this.bufferedSamples > 6000) ratio = baseRatio * 1.015;
+        else if (this.bufferedSamples < 1200) ratio = baseRatio * 0.985;
 
         for (let i = 0; i < out.length; i++) {
-          if (this.muted || squelchClosed || !this.audioReadyToPlay || this.bufferedSamples < 2) {
+          if (this.muted || squelchClosed) {
             out[i] = 0;
-          } else {
+          } else if (this.bufferedSamples >= 2) {
             const idx0 = Math.floor(this.readPtr) % this.ringBuffer.length;
             const idx1 = (idx0 + 1) % this.ringBuffer.length;
             const frac = this.readPtr - Math.floor(this.readPtr);
             const s = this.ringBuffer[idx0] * (1 - frac) + this.ringBuffer[idx1] * frac;
+            this.lastSample = s;
             out[i] = s * this.volume;
             this.readPtr += ratio;
             if (this.readPtr >= this.ringBuffer.length) this.readPtr -= this.ringBuffer.length;
             this.bufferedSamples = Math.max(0, this.bufferedSamples - ratio);
+          } else {
+            // Atténuation douce au lieu d'un clic sec à 0
+            this.lastSample *= 0.95;
+            out[i] = this.lastSample * this.volume;
           }
         }
       };
@@ -1018,6 +1003,7 @@ class KiwiSDREngine {
         this.wsSnd.send(`SET ident_user=${encodeURIComponent(this.callsign || 'VizSDR_User')}`);
         const outRate = this.audioCtx ? this.audioCtx.sampleRate : 44100;
         this.wsSnd.send(`SET AR OK in=12000 out=${outRate}`);
+        this.wsSnd.send('SET compression=0');
         this.wsSnd.send('SET squelch=0 max=0');
         this.wsSnd.send('SET gen=0 mix=-1');
         this.sendTune();
@@ -1047,9 +1033,9 @@ class KiwiSDREngine {
         this.wsWf.send('SET auth t=kiwi p=#');
         this.wsWf.send(`SET ident_user=${encodeURIComponent(this.callsign || 'VizSDR_User')}`);
         this.wsWf.send('SET maxdb=0 mindb=-100');
+        this.wsWf.send('SET wf_comp=0');
         this.wsWf.send('SET wf_speed=2');
         this.wsWf.send('SET interp=13');
-        this.wsWf.send('SET wf_comp=0');
         this.sendZoom();
         this.connected = true;
         this.onStatusChange('connected', clean);
@@ -1076,7 +1062,6 @@ class KiwiSDREngine {
     if (this.wsWf) { try { this.wsWf.close(); } catch (_) {} this.wsWf = null; }
     this.connected = false;
     this.bufferedSamples = 0;
-    this.audioReadyToPlay = false;
     this.onStatusChange('disconnected', '');
   }
 
@@ -1186,6 +1171,7 @@ class KiwiSDREngine {
         }
       }
     } else {
+      // PCM 16-bit big-endian pur (lorsque SET compression=0 est actif)
       for (let i = offset; i + 1 < buffer.byteLength; i += 2) {
         this.pushSample(view.getInt16(i, false) / 32768.0);
       }
@@ -1210,40 +1196,41 @@ class KiwiSDREngine {
     if (buffer.byteLength < 20) return;
     if (view.getUint8(0) !== 0x57 || view.getUint8(1) !== 0x2F || view.getUint8(2) !== 0x46) return;
 
-    const flags = view.getUint32(8, true);
-    const isCompressed = (flags & 0x01) !== 0 || (buffer.byteLength < 600);
-
-    if (isCompressed && buffer.byteLength > 19) {
-      let predictor = view.getInt16(16, true);
-      let stepIndex = Math.max(0, Math.min(88, view.getUint8(18)));
-      const out = new Uint8Array(1024);
-      let outIdx = 0;
-
-      for (let i = 19; i < buffer.byteLength && outIdx < 1024; i++) {
-        const byte = view.getUint8(i);
-        const nibbles = [byte & 0x0F, (byte >> 4) & 0x0F];
-        for (let n = 0; n < 2 && outIdx < 1024; n++) {
-          const nibble = nibbles[n];
-          const step = this.stepSizeTable[stepIndex];
-          let diff = step >> 3;
-          if (nibble & 1) diff += step >> 2;
-          if (nibble & 2) diff += step >> 1;
-          if (nibble & 4) diff += step;
-          predictor += (nibble & 8) ? -diff : diff;
-          predictor = Math.max(-32768, Math.min(32767, predictor));
-          stepIndex = Math.max(0, Math.min(88, stepIndex + this.indexAdjustTable[nibble]));
-          out[outIdx++] = Math.max(0, Math.min(255, Math.round((predictor / 256) + 128)));
-        }
-      }
-      this.onWaterfallLine(out);
-    } else {
-      const bins = new Uint8Array(buffer, 16);
+    // Trame standard non compressée : en-tête 16 octets + 1024 octets uint8
+    if (buffer.byteLength >= 1040) {
+      const bins = new Uint8Array(buffer, 16, 1024);
       this.onWaterfallLine(bins);
+      return;
     }
+
+    // Trame compressée ADPCM (si le serveur force la compression)
+    let predictor = view.getInt16(16, true);
+    let stepIndex = Math.max(0, Math.min(88, view.getUint8(18)));
+    const out = new Uint8Array(1024);
+    let outIdx = 0;
+
+    for (let i = 19; i < buffer.byteLength && outIdx < 1024; i++) {
+      const byte = view.getUint8(i);
+      const nibbles = [byte & 0x0F, (byte >> 4) & 0x0F];
+      for (let n = 0; n < 2 && outIdx < 1024; n++) {
+        const nibble = nibbles[n];
+        const step = this.stepSizeTable[stepIndex];
+        let diff = step >> 3;
+        if (nibble & 1) diff += step >> 2;
+        if (nibble & 2) diff += step >> 1;
+        if (nibble & 4) diff += step;
+        predictor += (nibble & 8) ? -diff : diff;
+        predictor = Math.max(-32768, Math.min(32767, predictor));
+        stepIndex = Math.max(0, Math.min(88, stepIndex + this.indexAdjustTable[nibble]));
+        // KiwiSDR encode les bins ADPCM entre 0 et 255 directement dans predictor
+        out[outIdx++] = Math.max(0, Math.min(255, predictor & 0xFF));
+      }
+    }
+    this.onWaterfallLine(out);
   }
 }
 
-/* ================= LOGIQUE INTERFACE VIZSDR v0.4.0 ================= */
+/* ================= LOGIQUE INTERFACE VIZSDR v0.4.1 ================= */
 const KIWI_FILTERS = {
   am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
   fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
@@ -1257,16 +1244,15 @@ const state = {
   freqKhz: 4625.0,
   minFreqKhz: 0,
   maxFreqKhz: 30000,
-  mode: 'am',
+  mode: 'usb',
   widthState: 'normal',
   customFilters: JSON.parse(localStorage.getItem('viz_filters') || 'null') || JSON.parse(JSON.stringify(KIWI_FILTERS)),
   zoom: 7,
-  wfMin: -135,
-  wfMax: -45,
+  wfMin: -130,
+  wfMax: -55,
   colormap: 'kiwi',
-  beacons: JSON.parse(localStorage.getItem('viz_beacons') || '[{"name":"UVB-76","freq":4625,"mode":"usb","width":"narrow"}]'),
-  directory: JSON.parse(localStorage.getItem('viz_dir') || '[{"name":"Priyom.org","url":"https://priyom.org"},{"name":"SigIDWiki","url":"https://www.sigidwiki.com"},{"name":"Short-Wave.info","url":"https://www.short-wave.info"},{"name":"KiwiSDR Map","url":"http://rx.linkfanel.net"}]'),
-  recentHosts: JSON.parse(localStorage.getItem('viz_hosts') || '[]')
+  beacons: JSON.parse(localStorage.getItem('viz_beacons') || '[{"name":"UVB-76","freq":4625,"mode":"usb","width":"normal"}]'),
+  directory: JSON.parse(localStorage.getItem('viz_dir') || '[{"name":"Priyom.org","url":"https://priyom.org"},{"name":"SigIDWiki","url":"https://www.sigidwiki.com"},{"name":"Short-Wave.info","url":"https://www.short-wave.info"},{"name":"KiwiSDR Map","url":"http://rx.linkfanel.net"}]')
 };
 
 const I18N = {
@@ -1281,7 +1267,7 @@ const I18N = {
     enterFreq: 'Fréquence (kHz)',
     saveBeacon: 'Balise',
     beaconsTitle: 'Balises & Fréquences sauvegardées',
-    settingsTitle: 'Paramètres VizSDR v0.4.0',
+    settingsTitle: 'Paramètres VizSDR v0.4.1',
     connSection: 'Connexion KiwiSDR',
     disconnect: 'Déconnecter',
     connect: 'Connecter',
@@ -1304,7 +1290,7 @@ const I18N = {
     enterFreq: 'Frequency (kHz)',
     saveBeacon: 'Beacon',
     beaconsTitle: 'Beacons & Saved Frequencies',
-    settingsTitle: 'VizSDR v0.4.0 Settings',
+    settingsTitle: 'VizSDR v0.4.1 Settings',
     connSection: 'KiwiSDR Connection',
     disconnect: 'Disconnect',
     connect: 'Connect',
@@ -1318,29 +1304,27 @@ const I18N = {
   }
 };
 
-// Canvas Waterfall ultra-fluide (décalage matériel 1 ligne/trame)
+// Canvas Waterfall net (largeur fixe 1024 bins pour éviter tout flou d'interpolation)
 const wfWrap = document.getElementById('waterfall-wrap');
 const wfCanvas = document.getElementById('wf-canvas');
 const wfCtx = wfCanvas.getContext('2d', { alpha: false });
 const wfDiagBadge = document.getElementById('wf-diag-badge');
 let wfLineCount = 0;
 let lastBins = null;
+let wfImgData = null;
 
 function resizeCanvas() {
   const rect = wfWrap.getBoundingClientRect();
-  const w = Math.max(300, Math.floor(rect.width || window.innerWidth));
-  const h = Math.max(140, Math.floor(rect.height || (window.innerHeight * 0.66)));
-  if (wfCanvas.width !== w || wfCanvas.height !== h) {
-    const temp = document.createElement('canvas');
-    temp.width = wfCanvas.width || w;
-    temp.height = wfCanvas.height || h;
-    temp.getContext('2d').drawImage(wfCanvas, 0, 0);
-
-    wfCanvas.width = w;
+  const h = Math.max(180, Math.floor(rect.height || (window.innerHeight * 0.66)));
+  if (wfCanvas.width !== 1024 || wfCanvas.height !== h) {
+    wfCanvas.width = 1024;
     wfCanvas.height = h;
-    wfCtx.fillStyle = '#05070a';
-    wfCtx.fillRect(0, 0, w, h);
-    wfCtx.drawImage(temp, 0, 0, w, h);
+    wfImgData = wfCtx.createImageData(1024, h);
+    const d = wfImgData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = 5; d[i + 1] = 7; d[i + 2] = 10; d[i + 3] = 255;
+    }
+    wfCtx.putImageData(wfImgData, 0, 0);
   }
   renderBeaconTags();
 }
@@ -1379,25 +1363,22 @@ function getColorLUT(name) {
 let currentLUT = getColorLUT('kiwi');
 
 function pushWaterfallRow(bins) {
-  if (wfCanvas.width < 10 || wfCanvas.height < 10) resizeCanvas();
-  const w = wfCanvas.width;
+  if (!wfImgData) resizeCanvas();
   const h = wfCanvas.height;
+  const data = wfImgData.data;
+  const rowBytes = 1024 * 4;
 
   wfLineCount++;
   lastBins = bins;
-  wfDiagBadge.textContent = `WF: ${wfLineCount} lignes`;
+  wfDiagBadge.textContent = `WF: ${wfLineCount} (${bins.length}b)`;
 
-  // Décale l'image existante vers le bas d'un pixel (accélération GPU)
-  wfCtx.drawImage(wfCanvas, 0, 0, w, h - 1, 0, 1, w, h - 1);
+  // Décale le tampon mémoire d'une ligne vers le bas (zéro flou, netteté parfaite)
+  data.copyWithin(rowBytes, 0, (h - 1) * rowBytes);
 
-  // Dessine uniquement la nouvelle ligne supérieure (1px)
-  const rowImg = wfCtx.createImageData(w, 1);
-  const data = rowImg.data;
   const denom = Math.max(1, state.wfMax - state.wfMin);
-
-  for (let x = 0; x < w; x++) {
-    const bIdx = Math.min(bins.length - 1, Math.floor((x / w) * bins.length));
-    const dbm = bins[bIdx] - 255;
+  for (let x = 0; x < 1024; x++) {
+    const val = bins[x] !== undefined ? bins[x] : 0;
+    const dbm = val - 255;
     const scaled = Math.max(0, Math.min(255, Math.round(((dbm - state.wfMin) / denom) * 255)));
     const p = x * 4;
     data[p] = currentLUT[scaled * 3];
@@ -1405,7 +1386,7 @@ function pushWaterfallRow(bins) {
     data[p + 2] = currentLUT[scaled * 3 + 2];
     data[p + 3] = 255;
   }
-  wfCtx.putImageData(rowImg, 0, 0);
+  wfCtx.putImageData(wfImgData, 0, 0);
 }
 
 // Instance Moteur KiwiSDR
@@ -1495,11 +1476,12 @@ function updateModeUI() {
 }
 
 function updatePassbandCursor() {
+  const wrapW = wfWrap.getBoundingClientRect().width || window.innerWidth;
   const spanTotal = Math.max(1, state.maxFreqKhz - state.minFreqKhz);
   const curSpanHz = (spanTotal / Math.pow(2, state.zoom)) * 1000;
   const [low, high] = state.customFilters[state.mode][state.widthState];
   const bwHz = Math.max(50, high - low);
-  const widthPx = Math.max(6, Math.min(wfCanvas.width * 0.8, (bwHz / curSpanHz) * wfCanvas.width));
+  const widthPx = Math.max(6, Math.min(wrapW * 0.8, (bwHz / curSpanHz) * wrapW));
   document.getElementById('passband-shade').style.width = `${widthPx}px`;
 }
 
@@ -1547,9 +1529,10 @@ wfCanvas.addEventListener('pointerdown', (e) => {
 wfCanvas.addEventListener('pointermove', (e) => {
   if (!isDraggingWf) return;
   const dx = e.clientX - dragStartX;
+  const wrapW = wfWrap.getBoundingClientRect().width || window.innerWidth;
   const spanTotal = Math.max(1, state.maxFreqKhz - state.minFreqKhz);
   const curSpan = spanTotal / Math.pow(2, state.zoom);
-  const deltaKhz = -(dx / wfCanvas.width) * curSpan;
+  const deltaKhz = -(dx / wrapW) * curSpan;
   setFrequency(dragStartFreq + deltaKhz);
 });
 wfCanvas.addEventListener('pointerup', () => { isDraggingWf = false; });
@@ -1629,7 +1612,7 @@ function renderBeaconTags() {
       tag.style.left = `${pct}%`;
       tag.textContent = `★ ${b.name}`;
       tag.onclick = () => {
-        state.mode = b.mode || 'am';
+        state.mode = b.mode || 'usb';
         state.widthState = b.width || 'normal';
         setFrequency(b.freq);
         updateModeUI();
@@ -1807,8 +1790,8 @@ document.getElementById('btn-quick-custom').addEventListener('click', () => { op
 function connectToHost(host) {
   if (!host) return;
   wfLineCount = 0;
-  wfCtx.fillStyle = '#05070a';
-  wfCtx.fillRect(0, 0, wfCanvas.width, wfCanvas.height);
+  wfImgData = null;
+  resizeCanvas();
   wfDiagBadge.textContent = 'WF: connexion...';
   engine.callsign = document.getElementById('callsign-input').value.trim() || 'VizSDR_User';
   closeAllModals();
@@ -1840,8 +1823,8 @@ document.getElementById('wf-colormap').addEventListener('change', (e) => {
   state.colormap = e.target.value;
   currentLUT = getColorLUT(state.colormap);
 });
-document.getElementById('wf-min').addEventListener('change', (e) => { state.wfMin = parseInt(e.target.value, 10) || -135; });
-document.getElementById('wf-max').addEventListener('change', (e) => { state.wfMax = parseInt(e.target.value, 10) || -45; });
+document.getElementById('wf-min').addEventListener('change', (e) => { state.wfMin = parseInt(e.target.value, 10) || -130; });
+document.getElementById('wf-max').addEventListener('change', (e) => { state.wfMax = parseInt(e.target.value, 10) || -55; });
 document.getElementById('wf-speed').addEventListener('change', (e) => engine.setWaterfallSpeed(parseInt(e.target.value, 10)));
 document.getElementById('btn-wf-autoscale').addEventListener('click', () => {
   if (lastBins && lastBins.length > 0) {
