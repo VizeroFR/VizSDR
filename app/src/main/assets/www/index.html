@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>VizSDR v0.4.4</title>
+  <title>VizSDR v0.4.5</title>
   <style>
     :root {
       --bg-dark: #0b0e14;
@@ -627,7 +627,7 @@
     <div class="top-left">
       <div class="brand-row">
         <span class="brand-title">VizSDR</span>
-        <span class="version-badge">v0.4.4</span>
+        <span class="version-badge">v0.4.5</span>
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text" data-i18n="disconnected">Déconnecté</span>
       </div>
@@ -777,7 +777,7 @@
 <div id="settings-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.4</span></h2>
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.5</span></h2>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
@@ -883,7 +883,7 @@
 </div>
 
 <script>
-/* ================= MOTEUR KIWISDR v0.4.4 ================= */
+/* ================= MOTEUR KIWISDR v0.4.5 ================= */
 class KiwiSDREngine {
   constructor(callbacks = {}) {
     this.onWaterfallLine = callbacks.onWaterfallLine || (() => {});
@@ -1031,12 +1031,12 @@ class KiwiSDREngine {
         wfDiagBadge.textContent = 'WF: init flux...';
         this.wsWf.send('SET auth t=kiwi p=#');
         this.wsWf.send(`SET ident_user=${encodeURIComponent(this.callsign || 'VizSDR_User')}`);
-        this.sendZoom();
         this.wsWf.send('SET maxdb=0 mindb=-100');
         this.wsWf.send('SET wf_speed=2');
         this.wsWf.send('SET interp=13');
         this.wsWf.send('SET wf_comp=1');
         this.wsWf.send('SET send_db=1');
+        this.sendZoom();
         this.connected = true;
         this.onStatusChange('connected', clean);
       };
@@ -1104,7 +1104,8 @@ class KiwiSDREngine {
     const spanKhz = spanTotal / Math.pow(2, this.zoom);
     const relFreq = Math.max(0, this.freqKhz - this.minFreqKhz);
     const startKhz = Math.max(0, Math.min(spanTotal - spanKhz, relFreq - spanKhz / 2));
-    const startBin = Math.round((startKhz / spanTotal) * (1024 * Math.pow(2, 14)));
+    // Échelle exacte KiwiSDR : 0 à 1 048 576 (1024 * 1024)
+    const startBin = Math.round((startKhz / spanTotal) * 1048576);
     this.wsWf.send(`SET zoom=${this.zoom} start=${startBin}`);
   }
 
@@ -1213,7 +1214,6 @@ class KiwiSDREngine {
     if (buffer.byteLength < 8) return;
     const b0 = view.getUint8(0), b1 = view.getUint8(1), b2 = view.getUint8(2);
 
-    // KiwiSDR envoie les messages "MSG ..." en trames binaires sur /W/F !
     if (b0 === 0x4D && b1 === 0x53 && b2 === 0x47) {
       const text = new TextDecoder().decode(new Uint8Array(buffer));
       wfDiagBadge.textContent = `WF: ${text.slice(0, 26)}`;
@@ -1221,7 +1221,6 @@ class KiwiSDREngine {
       return;
     }
 
-    // Vérifie l'en-tête 'W/F' (0x57 0x2F 0x46)
     if (b0 !== 0x57 || b1 !== 0x2F || b2 !== 0x46) {
       const tag = String.fromCharCode(b0, b1, b2);
       wfDiagBadge.textContent = `WF: [${tag}] (${buffer.byteLength}o)`;
@@ -1235,7 +1234,7 @@ class KiwiSDREngine {
       return;
     }
 
-    // 2. Trame compressée IMA-ADPCM KiwiSDR (en-tête 16 octets + predictor int16 + stepIndex uint8)
+    // 2. Trame compressée IMA-ADPCM KiwiSDR
     if (buffer.byteLength < 20) return;
     let predictor = view.getInt16(16, true);
     let stepIndex = Math.max(0, Math.min(88, view.getUint8(18)));
@@ -1263,7 +1262,7 @@ class KiwiSDREngine {
   }
 }
 
-/* ================= LOGIQUE INTERFACE VIZSDR v0.4.4 ================= */
+/* ================= LOGIQUE INTERFACE VIZSDR v0.4.5 ================= */
 const KIWI_FILTERS = {
   am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
   fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
@@ -1300,7 +1299,7 @@ const I18N = {
     enterFreq: 'Fréquence (kHz)',
     saveBeacon: 'Balise',
     beaconsTitle: 'Balises & Fréquences sauvegardées',
-    settingsTitle: 'Paramètres VizSDR v0.4.4',
+    settingsTitle: 'Paramètres VizSDR v0.4.5',
     connSection: 'Connexion KiwiSDR',
     disconnect: 'Déconnecter',
     connect: 'Connecter',
@@ -1323,7 +1322,7 @@ const I18N = {
     enterFreq: 'Frequency (kHz)',
     saveBeacon: 'Beacon',
     beaconsTitle: 'Beacons & Saved Frequencies',
-    settingsTitle: 'VizSDR v0.4.4 Settings',
+    settingsTitle: 'VizSDR v0.4.5 Settings',
     connSection: 'KiwiSDR Connection',
     disconnect: 'Disconnect',
     connect: 'Connect',
