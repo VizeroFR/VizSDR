@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>VizSDR v0.4.2</title>
+  <title>VizSDR v0.4.3</title>
   <style>
     :root {
       --bg-dark: #0b0e14;
@@ -627,7 +627,7 @@
     <div class="top-left">
       <div class="brand-row">
         <span class="brand-title">VizSDR</span>
-        <span class="version-badge">v0.4.2</span>
+        <span class="version-badge">v0.4.3</span>
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text" data-i18n="disconnected">Déconnecté</span>
       </div>
@@ -777,7 +777,7 @@
 <div id="settings-modal" class="modal-backdrop">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.2</span></h2>
+      <h2>⚙ <span data-i18n="settingsTitle">Paramètres VizSDR v0.4.3</span></h2>
       <button class="icon-btn close-modal">✕</button>
     </div>
     <div class="modal-body">
@@ -883,7 +883,7 @@
 </div>
 
 <script>
-/* ================= MOTEUR KIWISDR v0.4.2 ================= */
+/* ================= MOTEUR KIWISDR v0.4.3 ================= */
 class KiwiSDREngine {
   constructor(callbacks = {}) {
     this.onWaterfallLine = callbacks.onWaterfallLine || (() => {});
@@ -1028,14 +1028,14 @@ class KiwiSDREngine {
       this.wsWf.binaryType = 'arraybuffer';
 
       this.wsWf.onopen = () => {
-        wfDiagBadge.textContent = 'WF: socket ouvert...';
+        wfDiagBadge.textContent = 'WF: init flux...';
         this.wsWf.send('SET auth t=kiwi p=#');
         this.wsWf.send(`SET ident_user=${encodeURIComponent(this.callsign || 'VizSDR_User')}`);
+        this.sendZoom();
         this.wsWf.send('SET maxdb=0 mindb=-100');
         this.wsWf.send('SET wf_speed=2');
         this.wsWf.send('SET interp=13');
-        this.wsWf.send('SET wf_comp=0');
-        this.sendZoom();
+        this.wsWf.send('SET wf_comp=1');
         this.connected = true;
         this.onStatusChange('connected', clean);
       };
@@ -1204,16 +1204,20 @@ class KiwiSDREngine {
   handleWaterfallFrame(buffer) {
     const view = new DataView(buffer);
     if (buffer.byteLength < 20) return;
-    if (view.getUint8(0) !== 0x57 || view.getUint8(1) !== 0x2F || view.getUint8(2) !== 0x46) return;
+    // Vérifie 'W/F' (0x57 0x2F 0x46)
+    if (view.getUint8(0) !== 0x57 || view.getUint8(1) !== 0x2F || view.getUint8(2) !== 0x46) {
+      wfDiagBadge.textContent = `WF: trame ? (${buffer.byteLength}o)`;
+      return;
+    }
 
     // 1. Trame non compressée (en-tête 16 octets + 1024 bins uint8)
     if (buffer.byteLength >= 1040) {
       const bins = new Uint8Array(buffer, 16, 1024);
-      this.onWaterfallLine(bins);
+      this.onWaterfallLine(bins, buffer.byteLength);
       return;
     }
 
-    // 2. Trame compressée IMA-ADPCM KiwiSDR
+    // 2. Trame compressée IMA-ADPCM KiwiSDR (bins mis à l'échelle << 8 dans predictor)
     let predictor = view.getInt16(16, true);
     let stepIndex = Math.max(0, Math.min(88, view.getUint8(18)));
     const out = new Uint8Array(1024);
@@ -1232,14 +1236,16 @@ class KiwiSDREngine {
         predictor += (nibble & 8) ? -diff : diff;
         predictor = Math.max(-32768, Math.min(32767, predictor));
         stepIndex = Math.max(0, Math.min(88, stepIndex + this.indexAdjustTable[nibble]));
-        out[outIdx++] = Math.max(0, Math.min(255, predictor));
+        // KiwiSDR encode les bins ADPCM en 8.8 fixed-point : >> 8 redonne la valeur uint8 exacte (0..255)
+        const binVal = (predictor >> 8) & 0xFF;
+        out[outIdx++] = binVal;
       }
     }
-    this.onWaterfallLine(out);
+    this.onWaterfallLine(out, buffer.byteLength);
   }
 }
 
-/* ================= LOGIQUE INTERFACE VIZSDR v0.4.2 ================= */
+/* ================= LOGIQUE INTERFACE VIZSDR v0.4.3 ================= */
 const KIWI_FILTERS = {
   am:  { normal: [-4900, 4900],  narrow: [-2500, 2500], wide: [-7500, 7500] },
   fm:  { normal: [-6000, 6000],  narrow: [-4000, 4000], wide: [-12000, 12000] },
@@ -1276,7 +1282,7 @@ const I18N = {
     enterFreq: 'Fréquence (kHz)',
     saveBeacon: 'Balise',
     beaconsTitle: 'Balises & Fréquences sauvegardées',
-    settingsTitle: 'Paramètres VizSDR v0.4.2',
+    settingsTitle: 'Paramètres VizSDR v0.4.3',
     connSection: 'Connexion KiwiSDR',
     disconnect: 'Déconnecter',
     connect: 'Connecter',
@@ -1299,7 +1305,7 @@ const I18N = {
     enterFreq: 'Frequency (kHz)',
     saveBeacon: 'Beacon',
     beaconsTitle: 'Beacons & Saved Frequencies',
-    settingsTitle: 'VizSDR v0.4.2 Settings',
+    settingsTitle: 'VizSDR v0.4.3 Settings',
     connSection: 'KiwiSDR Connection',
     disconnect: 'Disconnect',
     connect: 'Connect',
@@ -1313,7 +1319,7 @@ const I18N = {
   }
 };
 
-// Canvas Waterfall net (largeur fixe 1024 bins pour éviter tout flou d'interpolation)
+// Canvas Waterfall net (largeur fixe 1024 bins)
 const wfWrap = document.getElementById('waterfall-wrap');
 const wfCanvas = document.getElementById('wf-canvas');
 const wfCtx = wfCanvas.getContext('2d', { alpha: false });
@@ -1371,7 +1377,7 @@ function getColorLUT(name) {
 }
 let currentLUT = getColorLUT('kiwi');
 
-function pushWaterfallRow(bins) {
+function pushWaterfallRow(bins, rawBytes) {
   if (!wfImgData) resizeCanvas();
   const h = wfCanvas.height;
   const data = wfImgData.data;
@@ -1379,7 +1385,7 @@ function pushWaterfallRow(bins) {
 
   wfLineCount++;
   lastBins = bins;
-  wfDiagBadge.textContent = `WF: ${wfLineCount} (${bins.length}b)`;
+  wfDiagBadge.textContent = `WF: ${wfLineCount} (${rawBytes || bins.length}o)`;
 
   data.copyWithin(rowBytes, 0, (h - 1) * rowBytes);
 
@@ -1399,7 +1405,7 @@ function pushWaterfallRow(bins) {
 
 // Instance Moteur KiwiSDR
 const engine = new KiwiSDREngine({
-  onWaterfallLine: (bins) => pushWaterfallRow(bins),
+  onWaterfallLine: (bins, rawBytes) => pushWaterfallRow(bins, rawBytes),
   onSMeter: (dbm) => {
     document.getElementById('dbm-val').textContent = `${dbm.toFixed(1)} dBm`;
     const pct = Math.max(0, Math.min(100, ((dbm + 140) / 110) * 100));
